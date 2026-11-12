@@ -5195,7 +5195,7 @@ end
 
 local function createWindow(config)
     validConfig(config, "CreateWindow")
-    local initialSize = config.Size or UDim2.fromOffset(1000, 640)
+    local initialSize = config.Size or UDim2.fromOffset(800, 500)
     assert(typeof(initialSize) == "UDim2", "CreateWindow.Size must be a UDim2")
     assert(config.Theme == nil or type(config.Theme) == "table", "CreateWindow.Theme must be a table")
     assert(config.ToggleKey == nil or isKeyCode(config.ToggleKey), "CreateWindow.ToggleKey must be an Enum.KeyCode")
