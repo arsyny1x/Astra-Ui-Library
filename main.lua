@@ -4732,8 +4732,14 @@ loadRestorePng = function(window, imageUrl, configuredDecoder, decoderUrl, targe
 end
 
 function WindowMethods:_build(config)
-    local parent = config.Parent or (LocalPlayer and LocalPlayer:FindFirstChildOfClass("PlayerGui"))
-    assert(parent, "AstraUI requires a PlayerGui or an explicit Parent")
+    local parent = config.Parent
+    if parent == nil then
+        local getHiddenGui = gethui or get_hidden_gui
+        assert(type(getHiddenGui) == "function",
+            "AstraUI requires gethui(), get_hidden_gui(), or an explicit Parent")
+        parent = getHiddenGui()
+    end
+    assert(typeof(parent) == "Instance", "AstraUI Parent must be an Instance")
     self._screenGui = make("ScreenGui", {
         DisplayOrder = 50,
         IgnoreGuiInset = false,

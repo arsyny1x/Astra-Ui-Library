@@ -23,7 +23,7 @@ local window = AstraUI:CreateWindow(config)
 | `Draggable` | boolean? | `true` unless explicitly `false` |
 | `Theme` | table? | Partial theme-token overrides; values must match token types |
 | `Localization` | table? | Localization locale and resolver configuration |
-| `Parent` | `Instance`? | Parent GUI; defaults to the local player's `PlayerGui` |
+| `Parent` | `Instance`? | Parent GUI; defaults to `gethui()` (alias: `get_hidden_gui()`). An explicit parent overrides this. |
 | `RestoreImageUrl` | string? | HTTP(S) PNG for the restore button |
 | `PngDecoder` | table? | Decoder exposing `decode(buffer, options)` |
 | `PngDecoderUrl` | string? | Optional remote decoder source override; defaults to the bundled `luau-png` URL and downloads/executes code if no decoder module is found |
