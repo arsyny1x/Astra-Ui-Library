@@ -52,7 +52,7 @@ Use the typed `Theme` tokens and presets instead of assigning neutral colors sep
 
 ### Typography, shape, and spacing
 
-- Use Roblox `Enum.Font.Gotham` for body text and `Enum.Font.GothamMedium` or `GothamBold` for hierarchy.
+- Use Roblox `Enum.Font.GothamMedium` for default body text and `GothamBold` for hierarchy; components may opt into lighter text where appropriate.
 - Window title: 18–20 px; section title: 14–16 px; body: 13–14 px; hints: 11–12 px.
 - Base spacing scale: 4, 8, 12, 16, 20, 24 px.
 - Panel corner radius: 12–16 px; controls: 8–10 px; pills and status badges: fully rounded.
@@ -111,7 +111,7 @@ local window = AstraUI:CreateWindow({
     Title = "Control Center",
     Subtitle = "Welcome back",
     HeaderVersion = "v1.0.0",
-    Size = UDim2.fromOffset(920, 600),
+    Size = UDim2.fromOffset(1000, 640),
     ToggleKey = Enum.KeyCode.RightShift,
     Responsive = true,
     Resizable = true,

@@ -9,14 +9,14 @@ local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyn
 local window = AstraUI:CreateWindow(config)
 ```
 
-`CreateWindow` returns the window object. The initial size defaults to `UDim2.fromOffset(920, 600)`. The window fades and scales smoothly on its initial appearance and whenever visibility changes through `SetVisible`, the restore button, or the toggle key.
+`CreateWindow` returns the window object. The initial size defaults to `UDim2.fromOffset(1000, 640)`. The window automatically fits within the available viewport, including on smaller screens. Its background and border fade when visibility changes through `SetVisible`, the restore button, or the toggle key.
 
 | Field | Type | Default / notes |
 |---|---|---|
 | `Title` | string | `"Astra UI"` |
 | `Subtitle` | string? | Optional subtitle |
 | `HeaderVersion` | string? | Optional version text in the header |
-| `Size` | `UDim2`? | Initial size; default 920 × 600 pixels |
+| `Size` | `UDim2`? | Initial size; default 1000 × 640 pixels |
 | `ToggleKey` | `Enum.KeyCode`? | Optional visibility toggle key |
 | `Responsive` | boolean? | `true` unless explicitly `false` |
 | `Resizable` | boolean? | `true` unless explicitly `false` |

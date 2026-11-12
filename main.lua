@@ -391,7 +391,7 @@ function WindowMethods:_text(parent, value, properties)
     local props = shallowCopy(properties)
     props.Text = self:_resolveText(value)
     props.BackgroundTransparency = props.BackgroundTransparency or 1
-    props.Font = props.Font or Enum.Font.Gotham
+    props.Font = props.Font or Enum.Font.GothamMedium
     props.TextColor3 = props.TextColor3 or self.Theme.TextPrimary
     props.TextSize = props.TextSize or 14
     props.TextXAlignment = props.TextXAlignment or Enum.TextXAlignment.Left
@@ -1334,10 +1334,8 @@ function WindowMethods:SetVisible(visible)
     end
     table.clear(self._visibilityTweens)
     if visible and not self._panel.Visible then
-        self._panelScale.Scale = 0.95
         self._panel.BackgroundTransparency = 1
         self._panelStroke.Transparency = 1
-        self._contentGroup.GroupTransparency = 1
         self._panel.Visible = true
     end
     if self._restoreButton then
@@ -1349,18 +1347,11 @@ function WindowMethods:SetVisible(visible)
         visible and Enum.EasingDirection.Out or Enum.EasingDirection.In
     )
     local transparency = visible and 0 or 1
-    local scaleTween = TweenService:Create(self._panelScale, tweenInfo, {
-        Scale = visible and 1 or 0.95,
-    })
-    table.insert(self._visibilityTweens, scaleTween)
     table.insert(self._visibilityTweens, TweenService:Create(self._panel, tweenInfo, {
         BackgroundTransparency = transparency,
     }))
     table.insert(self._visibilityTweens, TweenService:Create(self._panelStroke, tweenInfo, {
         Transparency = visible and self._panelStrokeTargetTransparency or 1,
-    }))
-    table.insert(self._visibilityTweens, TweenService:Create(self._contentGroup, tweenInfo, {
-        GroupTransparency = transparency,
     }))
     local remainingTweens = #self._visibilityTweens
     for _, tween in ipairs(self._visibilityTweens) do
@@ -4706,13 +4697,9 @@ function WindowMethods:_build(config)
         Visible = false,
         ZIndex = 1,
     }, self._screenGui)
-    self._panelScale = make("UIScale", {
-        Scale = 0.95,
-    }, self._panel)
-    self._contentGroup = make("CanvasGroup", {
+    self._contentGroup = make("Frame", {
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        GroupTransparency = 1,
         Position = UDim2.fromScale(0, 0),
         Size = UDim2.fromScale(1, 1),
         ZIndex = 1,
@@ -5208,7 +5195,7 @@ end
 
 local function createWindow(config)
     validConfig(config, "CreateWindow")
-    local initialSize = config.Size or UDim2.fromOffset(920, 600)
+    local initialSize = config.Size or UDim2.fromOffset(1000, 640)
     assert(typeof(initialSize) == "UDim2", "CreateWindow.Size must be a UDim2")
     assert(config.Theme == nil or type(config.Theme) == "table", "CreateWindow.Theme must be a table")
     assert(config.ToggleKey == nil or isKeyCode(config.ToggleKey), "CreateWindow.ToggleKey must be an Enum.KeyCode")
