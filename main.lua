@@ -2051,6 +2051,7 @@ function WindowMethods:Tab(config)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         CanvasSize = UDim2.new(0, 0, 0, 0),
+        ScrollingDirection = Enum.ScrollingDirection.Y,
         ScrollBarImageColor3 = self.Theme.AccentSecondary,
         ScrollBarThickness = 4,
         Size = UDim2.fromScale(1, 1),
@@ -2202,7 +2203,7 @@ function TabMethods:Section(config)
                 if not frame.Parent then
                     return
                 end
-                local stacked = window._narrow or frame.AbsoluteSize.X < 650
+                local stacked = window._narrow or frame.AbsoluteSize.X < 740
                 if stacked then
                     left.Position = UDim2.new(0, 0, 0, 0)
                     left.Size = UDim2.new(1, 0, 0, leftLayout.AbsoluteContentSize.Y)
@@ -4742,8 +4743,8 @@ function WindowMethods:_build(config)
             self:SetVisible(not self._visibilityTarget)
         end
     end, {
-        Size = UDim2.new(0, 48, 0, 48),
-        Height = 48,
+        Size = UDim2.new(0, 58, 0, 58),
+        Height = 58,
         HoverRole = "AccentSecondary",
         Role = "AccentSecondary",
         StrokeRole = "AccentSecondary",
@@ -4756,7 +4757,7 @@ function WindowMethods:_build(config)
     self._restoreIcon = self:_icon(self._restoreButton, "layout-dashboard", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(22, 22),
+        Size = UDim2.fromOffset(26, 26),
         TextColor3 = self.Theme.AccentForeground,
         TextSize = 20,
         TextXAlignment = Enum.TextXAlignment.Center,
@@ -4769,7 +4770,7 @@ function WindowMethods:_build(config)
         ImageTransparency = 0,
         Position = UDim2.fromScale(0.5, 0.5),
         ScaleType = Enum.ScaleType.Fit,
-        Size = UDim2.fromOffset(38, 38),
+        Size = UDim2.fromOffset(46, 46),
         Visible = false,
         ZIndex = self._restoreButton.ZIndex + 1,
     }, self._restoreButton)
@@ -5066,9 +5067,16 @@ function WindowMethods:_build(config)
     self:_trackTheme(sidebarBottomCorner, "Surface", "BackgroundColor3")
     self:_trackLilithSurface(sidebarBottomCorner, 0.18)
     self:_trackTheme(self._sidebar, "Surface", "BackgroundColor3")
-    self._tabList = make("Frame", {
+    self._tabList = make("ScrollingFrame", {
+        Active = true,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
         Position = UDim2.new(0, 8, 0, 12),
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ScrollBarImageColor3 = self.Theme.AccentSecondary,
+        ScrollBarThickness = 3,
         Size = UDim2.new(1, -16, 1, -24),
         ZIndex = 4,
     }, self._sidebar)
@@ -5087,9 +5095,16 @@ function WindowMethods:_build(config)
     self:_trackLilithSurface(self._drawer, 0.18)
     addCorner(self._drawer, 12, self)
     addStroke(self._drawer, self.Theme.Border, 0.2, self)
-    local drawerList = make("Frame", {
+    local drawerList = make("ScrollingFrame", {
+        Active = true,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
         Position = UDim2.new(0, 8, 0, 8),
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ScrollBarImageColor3 = self.Theme.AccentSecondary,
+        ScrollBarThickness = 3,
         Size = UDim2.new(1, -16, 1, -16),
         ZIndex = 51,
     }, self._drawer)

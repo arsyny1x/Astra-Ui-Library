@@ -40,7 +40,7 @@ tab:Section({Name = "Controls", Side = "Left"})
 tab:Section({Name = "Status", Side = "Right"})
 ```
 
-`Side` must be `"Left"` or `"Right"`. The columns stack when the content is narrow.
+`Side` must be `"Left"` or `"Right"`. The columns stack when the content is narrower than 740px, keeping each column usable on smaller windows such as 800x600.
 
 ## Accordion
 
