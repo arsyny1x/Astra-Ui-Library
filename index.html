@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Astra UI documentation: setup, components, themes, and API reference for a Roblox Luau UI library.">
+  <meta name="theme-color" content="#0b1020">
+  <title>Astra UI Documentation</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/prismjs@1.30.0/themes/prism-tomorrow.min.css">
+  <style>
+    :root {
+      --theme-color: #8b9cff;
+      --theme-color-dark: #6578ee;
+      --base-background-color: #0b1020;
+      --base-color: #dce4f2;
+      --heading-color: #f3f6fc;
+      --sidebar-background: #0e1424;
+      --sidebar-border-color: #202b42;
+      --sidebar-nav-link-color: #aebbd2;
+      --sidebar-nav-link-color--active: #aab8ff;
+      --sidebar-nav-link-color--hover: #ffffff;
+      --code-theme-background: #111a2b;
+      --code-theme-text: #e4eafb;
+      --blockquote-border-color: #8b9cff;
+      --blockquote-background: #131b2d;
+      --table-head-background: #151e31;
+      --table-cell-border-color: #27334b;
+      --link-color: #9eafff;
+      --link-color--hover: #c3ccff;
+    }
+
+    body {
+      background: var(--base-background-color);
+      color: var(--base-color);
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      background: #0e1424;
+      border-right: 1px solid var(--sidebar-border-color);
+      color: #aebbd2;
+      padding-top: 12px;
+      width: 272px;
+      box-shadow: 12px 0 36px rgba(2, 6, 18, 0.16);
+    }
+
+    .sidebar .app-name {
+      order: 1;
+      margin: 0 14px 12px;
+      padding: 12px 10px 16px;
+      border-bottom: 1px solid #202b42;
+    }
+
+    .sidebar .app-name-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #f3f6fc !important;
+      font-size: 19px;
+      font-weight: 750;
+      letter-spacing: -0.035em;
+    }
+
+    .sidebar .app-name-link::before {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      border: 1px solid rgba(176, 190, 255, 0.45);
+      border-radius: 9px;
+      background: linear-gradient(145deg, #6678e8, #42c8bb);
+      box-shadow: 0 5px 16px rgba(100, 120, 238, 0.25);
+      color: #ffffff;
+      content: "✦";
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .sidebar .app-name-link:hover {
+      text-decoration: none;
+    }
+
+    .sidebar .search {
+      order: 2;
+      margin: 0 14px 8px;
+      padding: 0 0 12px;
+      border-bottom: 0;
+      background: transparent;
+    }
+
+    .sidebar .search .input-wrap {
+      border: 1px solid #293650;
+      border-radius: 9px;
+      background: #111a2b;
+      transition: border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    .sidebar .search .input-wrap:focus-within {
+      border-color: #8293ff;
+      box-shadow: 0 0 0 3px rgba(130, 147, 255, 0.13);
+    }
+
+    .sidebar .search input {
+      height: 38px;
+      padding: 0 12px;
+      border: 0;
+      background: transparent;
+      color: #e4eafb;
+      font-size: 12px;
+    }
+
+    .sidebar .search input::placeholder {
+      color: #7786a1;
+    }
+
+    .sidebar-nav {
+      order: 3;
+      flex: 1 1 auto;
+      padding: 0 12px 24px;
+    }
+
+    .sidebar-nav > p {
+      margin: 20px 8px 7px;
+      color: #70809d;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.12em;
+      line-height: 1.4;
+      text-transform: uppercase;
+    }
+
+    .sidebar-nav > ul {
+      margin: 0;
+    }
+
+    .sidebar-nav li {
+      margin: 3px 0;
+      list-style: none;
+    }
+
+    .sidebar-nav li a {
+      display: flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 0 !important;
+      border-radius: 7px;
+      color: #c1cce0 !important;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.45;
+      transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+    }
+
+    .sidebar-nav li a:hover,
+    .sidebar-nav li.active > a {
+      color: #c3ccff !important;
+    }
+
+    .sidebar-nav li a:hover {
+      background: rgba(149, 164, 255, 0.08);
+      transform: translateX(2px);
+      text-decoration: none;
+    }
+
+    .sidebar-nav li.active > a {
+      background: linear-gradient(90deg, rgba(139, 156, 255, 0.16), rgba(139, 156, 255, 0.045));
+      box-shadow: inset 2px 0 #9eafff;
+      color: #eef1ff !important;
+      font-weight: 700;
+    }
+
+    .sidebar-nav ul ul {
+      margin: 5px 0 7px 10px;
+      padding-left: 9px;
+      border-left: 1px solid #253149;
+    }
+
+    .sidebar-nav ul ul li a {
+      min-height: 30px;
+      padding: 6px 9px;
+      color: #8998b3 !important;
+      font-size: 11px;
+    }
+
+    .sidebar-nav ul ul li.active > a {
+      color: #c3ccff !important;
+    }
+
+    .sidebar::-webkit-scrollbar,
+    .content::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb,
+    .content::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: #34425e;
+      background-clip: padding-box;
+    }
+
+    .markdown-section {
+      max-width: 920px;
+      padding: 38px 32px 72px;
+    }
+
+    .markdown-section h1,
+    .markdown-section h2,
+    .markdown-section h3 {
+      color: #f7f8ff !important;
+      -webkit-text-fill-color: #f7f8ff;
+      letter-spacing: -0.025em;
+    }
+
+    .markdown-section h1 {
+      font-size: 2.25rem;
+      text-shadow: 0 0 28px rgba(139, 156, 255, 0.12);
+    }
+
+    .markdown-section h2 {
+      color: #edf0ff !important;
+      -webkit-text-fill-color: #edf0ff;
+    }
+
+    .markdown-section p,
+    .markdown-section li {
+      color: #dce4f2;
+      line-height: 1.75;
+    }
+
+    .markdown-section a {
+      color: #aebeff;
+    }
+
+    .markdown-section a:hover {
+      color: #d0d8ff;
+    }
+
+    .markdown-section blockquote {
+      border-left-width: 3px;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 18px;
+    }
+
+    .markdown-section pre {
+      background: #111a2b !important;
+      border: 1px solid #26334b;
+      border-radius: 10px;
+    }
+
+    .markdown-section pre code {
+      background: transparent !important;
+      color: #e4eafb !important;
+    }
+
+    .markdown-section pre code .token.comment,
+    .markdown-section pre code .token.prolog,
+    .markdown-section pre code .token.doctype,
+    .markdown-section pre code .token.cdata {
+      color: #71819f !important;
+    }
+
+    .markdown-section pre code .token.keyword,
+    .markdown-section pre code .token.boolean {
+      color: #c792ea !important;
+    }
+
+    .markdown-section pre code .token.function {
+      color: #82aaff !important;
+    }
+
+    .markdown-section pre code .token.string {
+      color: #c3e88d !important;
+    }
+
+    .markdown-section pre code .token.number,
+    .markdown-section pre code .token.constant {
+      color: #f78c6c !important;
+    }
+
+    .markdown-section pre code .token.operator,
+    .markdown-section pre code .token.punctuation {
+      color: #89ddff !important;
+    }
+
+    .markdown-section code {
+      border-radius: 4px;
+    }
+
+    .markdown-section table {
+      display: table;
+      width: 100%;
+    }
+
+    .markdown-section th {
+      background: #151e31;
+      color: #edf1fa;
+    }
+
+    .markdown-section td {
+      background: #0e1424;
+      border-color: #27334b;
+      color: #dce4f2;
+    }
+
+    .markdown-section tr:nth-child(odd) td {
+      background: #111a2b;
+    }
+
+    .markdown-section strong {
+      color: #eef2fa;
+    }
+
+    .markdown-section code {
+      background: #18243a;
+      color: #dce4f2;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: min(272px, 84vw);
+      }
+
+      .markdown-section {
+        padding: 24px 20px 56px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">Loading Astra UI docs...</div>
+  <script>
+    window.$docsify = {
+      name: "Astra UI",
+      repo: "",
+      loadSidebar: true,
+      subMaxLevel: 3,
+      auto2top: true,
+      relativePath: true,
+      search: {
+        depth: 4,
+        placeholder: "Search the docs",
+        noData: "No results found.",
+        paths: "auto"
+      },
+      copyCode: {
+        buttonText: "Copy",
+        errorText: "Copy failed",
+        successText: "Copied"
+      },
+      hooks: {
+        doneEach: function() {
+          if (window.Prism) {
+            window.Prism.highlightAll();
+          }
+        }
+      },
+      pagination: {
+        previousText: "Previous",
+        nextText: "Next",
+        crossChapter: true
+      }
+    };
+  </script>
+  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-lua.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-copy-code@2"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-pagination@2/dist/docsify-pagination.min.js"></script>
+</body>
+</html>

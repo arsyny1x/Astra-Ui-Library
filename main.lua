@@ -1,0 +1,5273 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
+local TextService = game:GetService("TextService")
+
+local LocalPlayer = Players.LocalPlayer
+local ICON_LIBRARY_URLS = {
+    Lucide = "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/main/source.lua",
+    Solar = "https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/solar/dist/Icons.lua",
+}
+local DEFAULT_PNG_DECODER_URL = "https://raw.githubusercontent.com/arsyny1x/luau-png/refs/heads/main/png.luau"
+local LILITH_BACKGROUND_URL = "https://i.ibb.co/sk4YSdj/0074aa3e1434937e307545db8881065878c16ecc.png"
+local loadRestorePng
+
+local function loadIconLibrary(url, name)
+    assert(type(loadstring) == "function", "[AstraUI] loadstring is required to load the " .. name .. " icon library")
+    local source = game:HttpGet(url)
+    local chunk, compileError = loadstring(source)
+    assert(type(chunk) == "function", "[AstraUI] Unable to compile the " .. name .. " icon library: " .. tostring(compileError))
+    local library = chunk()
+    assert(type(library) == "table", "[AstraUI] The " .. name .. " icon library must return a table")
+    if name == "Lucide" then
+        assert(type(library.GetAsset) == "function", "[AstraUI] The Lucide icon library must expose GetAsset(name)")
+    end
+
+    return library
+end
+
+local DEFAULT_ICON_LIBRARIES = {
+    lucide = loadIconLibrary(ICON_LIBRARY_URLS.Lucide, "Lucide"),
+    solar = loadIconLibrary(ICON_LIBRARY_URLS.Solar, "Solar"),
+}
+
+local DEFAULT_THEME = {
+    Background = Color3.fromRGB(11, 14, 23),
+    WindowBorder = Color3.fromRGB(30, 36, 54),
+    Surface = Color3.fromRGB(17, 22, 37),
+    SurfaceRaised = Color3.fromRGB(22, 29, 45),
+    SurfaceHover = Color3.fromRGB(30, 34, 70),
+    SecondarySurface = Color3.fromRGB(30, 34, 70),
+    ControlSurface = Color3.fromRGB(20, 28, 43),
+    ControlInset = Color3.fromRGB(14, 20, 33),
+    ControlHover = Color3.fromRGB(29, 39, 57),
+    ControlTrack = Color3.fromRGB(38, 49, 68),
+    ControlBorder = Color3.fromRGB(49, 63, 84),
+    ControlKnob = Color3.fromRGB(220, 228, 239),
+    StateSurface = Color3.fromRGB(22, 29, 45),
+    Border = Color3.fromRGB(34, 43, 64),
+    BorderActive = Color3.fromRGB(16, 185, 129),
+    TextPrimary = Color3.fromRGB(235, 241, 250),
+    TextSecondary = Color3.fromRGB(156, 171, 193),
+    TextMuted = Color3.fromRGB(103, 120, 146),
+    Accent = Color3.fromRGB(59, 66, 159),
+    AccentSecondary = Color3.fromRGB(16, 185, 129),
+    AccentForeground = Color3.fromRGB(6, 30, 25),
+    Success = Color3.fromRGB(16, 185, 129),
+    Warning = Color3.fromRGB(217, 119, 6),
+    Danger = Color3.fromRGB(245, 104, 121),
+    CornerRadius = 8,
+    Density = "Compact",
+}
+
+local LIGHT_THEME = {
+    Background = Color3.fromRGB(232, 237, 245),
+    WindowBorder = Color3.fromRGB(179, 191, 207),
+    Surface = Color3.fromRGB(242, 246, 250),
+    SurfaceRaised = Color3.fromRGB(247, 249, 252),
+    SurfaceHover = Color3.fromRGB(228, 235, 244),
+    SecondarySurface = Color3.fromRGB(230, 239, 248),
+    ControlSurface = Color3.fromRGB(236, 241, 247),
+    ControlInset = Color3.fromRGB(224, 231, 240),
+    ControlHover = Color3.fromRGB(226, 234, 243),
+    ControlTrack = Color3.fromRGB(207, 218, 231),
+    ControlBorder = Color3.fromRGB(177, 191, 209),
+    ControlKnob = Color3.fromRGB(252, 253, 255),
+    StateSurface = Color3.fromRGB(247, 249, 252),
+    Border = Color3.fromRGB(191, 202, 216),
+    BorderActive = Color3.fromRGB(5, 150, 105),
+    TextPrimary = Color3.fromRGB(24, 34, 48),
+    TextSecondary = Color3.fromRGB(77, 91, 109),
+    TextMuted = Color3.fromRGB(112, 126, 145),
+    Accent = Color3.fromRGB(99, 102, 241),
+    AccentSecondary = Color3.fromRGB(5, 150, 105),
+    AccentForeground = Color3.fromRGB(6, 30, 25),
+    Success = Color3.fromRGB(5, 150, 105),
+    Warning = Color3.fromRGB(180, 103, 0),
+    Danger = Color3.fromRGB(210, 55, 75),
+    CornerRadius = 8,
+    Density = "Compact",
+}
+
+local LILITH_THEME = {
+    Background = Color3.fromRGB(225, 233, 246),
+    WindowBorder = Color3.fromRGB(93, 112, 151),
+    Surface = Color3.fromRGB(231, 239, 250),
+    SurfaceRaised = Color3.fromRGB(246, 248, 253),
+    SurfaceHover = Color3.fromRGB(247, 222, 230),
+    SecondarySurface = Color3.fromRGB(214, 228, 246),
+    ControlSurface = Color3.fromRGB(239, 244, 252),
+    ControlInset = Color3.fromRGB(213, 226, 244),
+    ControlHover = Color3.fromRGB(247, 222, 230),
+    ControlTrack = Color3.fromRGB(180, 199, 224),
+    ControlBorder = Color3.fromRGB(159, 180, 210),
+    ControlKnob = Color3.fromRGB(255, 252, 253),
+    StateSurface = Color3.fromRGB(241, 238, 248),
+    Border = Color3.fromRGB(172, 189, 216),
+    BorderActive = Color3.fromRGB(199, 49, 76),
+    TextPrimary = Color3.fromRGB(21, 22, 43),
+    TextSecondary = Color3.fromRGB(58, 65, 91),
+    TextMuted = Color3.fromRGB(101, 111, 138),
+    Accent = Color3.fromRGB(205, 48, 76),
+    AccentSecondary = Color3.fromRGB(91, 139, 197),
+    AccentForeground = Color3.fromRGB(255, 250, 251),
+    Success = Color3.fromRGB(61, 132, 111),
+    Warning = Color3.fromRGB(171, 106, 39),
+    Danger = Color3.fromRGB(190, 39, 67),
+    CornerRadius = 8,
+    Density = "Compact",
+}
+
+local THEME_KEYS = {}
+for key in pairs(DEFAULT_THEME) do
+    THEME_KEYS[key] = true
+end
+local THEME_COLOR_ROLE_ORDER = {
+    "Background",
+    "WindowBorder",
+    "Surface",
+    "SurfaceRaised",
+    "SurfaceHover",
+    "SecondarySurface",
+    "ControlSurface",
+    "ControlInset",
+    "ControlHover",
+    "ControlTrack",
+    "ControlBorder",
+    "ControlKnob",
+    "StateSurface",
+    "Border",
+    "BorderActive",
+    "TextPrimary",
+    "TextSecondary",
+    "TextMuted",
+    "Accent",
+    "AccentSecondary",
+    "AccentForeground",
+    "Success",
+    "Warning",
+    "Danger",
+}
+local THEME_ACCENT_ROLES = {"Accent", "AccentSecondary", "BorderActive", "Success"}
+
+local function matchesThemePreset(theme, preset)
+    for _, role in ipairs(THEME_COLOR_ROLE_ORDER) do
+        if not table.find(THEME_ACCENT_ROLES, role) and theme[role] ~= preset[role] then
+            return false
+        end
+    end
+    return true
+end
+
+local function make(className, properties, parent)
+    local object = Instance.new(className)
+    for key, value in pairs(properties or {}) do
+        object[key] = value
+    end
+    object.Parent = parent
+    return object
+end
+
+local function addCorner(object, radius, parentWindow, preserveRadius)
+    if parentWindow and not preserveRadius then
+        radius = parentWindow.Theme.CornerRadius
+    end
+    local corner = make("UICorner", {
+        CornerRadius = UDim.new(0, radius or 10),
+    }, object)
+    if parentWindow and not preserveRadius then
+        parentWindow:_trackTheme(corner, "CornerRadius")
+    end
+    return corner
+end
+
+local function addStroke(object, color, transparency, parentWindow, themeRole)
+    if parentWindow and themeRole == nil then
+        themeRole = "Border"
+    end
+    color = parentWindow and parentWindow.Theme[themeRole] or color
+    local stroke = make("UIStroke", {
+        Color = color or DEFAULT_THEME.Border,
+        Transparency = transparency or 0.45,
+        Thickness = 1,
+    }, object)
+    if parentWindow then
+        parentWindow:_trackTheme(stroke, themeRole, "Color")
+    end
+    return stroke
+end
+
+local function clamp(value, minimum, maximum)
+    return math.max(minimum, math.min(maximum, value))
+end
+
+local function shallowCopy(source)
+    local copy = {}
+    for key, value in pairs(source or {}) do
+        copy[key] = value
+    end
+    return copy
+end
+
+local function safeString(value)
+    if value == nil then
+        return ""
+    end
+    return tostring(value)
+end
+
+local function truncateText(value, maxLength)
+    if not maxLength then
+        return value
+    end
+    local offset = utf8 and utf8.offset and utf8.offset(value, math.floor(maxLength) + 1)
+    if offset then
+        return string.sub(value, 1, offset - 1)
+    end
+    return string.sub(value, 1, math.floor(maxLength))
+end
+
+local function textLength(value)
+    if utf8 and utf8.len then
+        local length = utf8.len(value)
+        if length then
+            return length
+        end
+    end
+    return #value
+end
+
+local function setVisible(object, visible)
+    if object and object.Parent then
+        object.Visible = visible
+    end
+end
+
+local function isTextFocused()
+    return UserInputService:GetFocusedTextBox() ~= nil
+end
+
+local function validConfig(config, method)
+    assert(type(config) == "table", method .. " expects a config table")
+end
+
+local function isKeyCode(value)
+    if typeof(value) ~= "EnumItem" then
+        return false
+    end
+    local enumType = tostring(value.EnumType)
+    return enumType == "Enum.KeyCode" or enumType == "KeyCode"
+end
+
+local WindowMethods = {}
+WindowMethods.__index = WindowMethods
+local TabMethods = {}
+TabMethods.__index = TabMethods
+local SectionMethods = {}
+SectionMethods.__index = SectionMethods
+local ControlMethods = {}
+ControlMethods.__index = ControlMethods
+local SearchMethods = {}
+SearchMethods.__index = SearchMethods
+
+function WindowMethods:_connect(signal, callback, owner)
+    local connection = signal:Connect(callback)
+    local list = owner and owner._connections or self._connections
+    table.insert(list, connection)
+    return connection
+end
+
+function WindowMethods:_trackTheme(object, propertyOrRole, property)
+    if not object then
+        return
+    end
+
+    for _, target in ipairs(self._themeTargets) do
+        if target.Object == object and target.Property == property then
+            target.Role = propertyOrRole
+            local value = self.Theme[propertyOrRole]
+            if value ~= nil then
+                if property then
+                    object[property] = value
+                elseif propertyOrRole == "CornerRadius" then
+                    object.CornerRadius = UDim.new(0, value)
+                end
+            end
+            return
+        end
+    end
+    table.insert(self._themeTargets, {
+        Object = object,
+        Role = propertyOrRole,
+        Property = property,
+    })
+    local value = self.Theme[propertyOrRole]
+    if value ~= nil then
+        if property then
+            object[property] = value
+        elseif propertyOrRole == "CornerRadius" then
+            object.CornerRadius = UDim.new(0, value)
+        end
+    end
+end
+
+function WindowMethods:_trackLilithSurface(object, transparency)
+    if not object then
+        return
+    end
+    self._lilithSurfaceTargets = self._lilithSurfaceTargets or {}
+    table.insert(self._lilithSurfaceTargets, {
+        Object = object,
+        Transparency = transparency,
+    })
+    object.BackgroundTransparency = self._themePreset == "Lilith" and transparency or 0
+end
+
+function WindowMethods:_applyLilithSurfaceMode()
+    local active = self._themePreset == "Lilith"
+    for _, target in ipairs(self._lilithSurfaceTargets or {}) do
+        if target.Object and target.Object.Parent then
+            target.Object.BackgroundTransparency = active and target.Transparency or 0
+        end
+    end
+end
+
+function WindowMethods:_trackColor(object, color, property)
+    if color == nil then
+        return
+    end
+    local preferredRoles
+    if property == "TextColor3" then
+        preferredRoles = {"TextPrimary", "TextSecondary", "TextMuted", "AccentForeground", "Danger", "Warning", "Success"}
+    elseif property == "BackgroundColor3" then
+        preferredRoles = {"Background", "Surface", "SurfaceRaised", "SurfaceHover", "SecondarySurface", "Border", "BorderActive", "Accent", "AccentSecondary", "Success"}
+    elseif property == "Color" then
+        preferredRoles = {"Border", "WindowBorder", "BorderActive", "AccentSecondary", "Accent", "Success", "Warning", "Danger"}
+    else
+        preferredRoles = {"AccentSecondary", "Accent", "Success", "Warning", "Danger", "TextPrimary", "TextSecondary", "TextMuted"}
+    end
+    for _, role in ipairs(preferredRoles) do
+        if self.Theme[role] == color then
+            self:_trackTheme(object, role, property)
+            return
+        end
+    end
+    for _, role in ipairs(THEME_COLOR_ROLE_ORDER) do
+        if self.Theme[role] == color then
+            self:_trackTheme(object, role, property)
+            return
+        end
+    end
+end
+
+function WindowMethods:_trackTextColor(object, color)
+    self:_trackColor(object, color, "TextColor3")
+end
+
+function WindowMethods:_resolveText(value)
+    local key
+    local fallback
+    if type(value) == "table" and value.Key then
+        key = safeString(value.Key)
+        fallback = safeString(value.Default or value.Key)
+    else
+        fallback = safeString(value)
+        key = fallback
+    end
+    local resolver = self.Localization.Resolve
+    if type(resolver) == "function" then
+        local ok, result = pcall(resolver, self.Localization.Locale, key, fallback)
+        if ok and result ~= nil then
+            return tostring(result)
+        elseif not ok then
+            warn("[AstraUI] Localization resolver failed: " .. tostring(result))
+        end
+    end
+    return fallback
+end
+
+function WindowMethods:_text(parent, value, properties)
+    local props = shallowCopy(properties)
+    props.Text = self:_resolveText(value)
+    props.BackgroundTransparency = props.BackgroundTransparency or 1
+    props.Font = props.Font or Enum.Font.Gotham
+    props.TextColor3 = props.TextColor3 or self.Theme.TextPrimary
+    props.TextSize = props.TextSize or 14
+    props.TextXAlignment = props.TextXAlignment or Enum.TextXAlignment.Left
+    props.TextYAlignment = props.TextYAlignment or Enum.TextYAlignment.Center
+    local label = make("TextLabel", props, parent)
+    self:_trackTextColor(label, props.TextColor3)
+    if type(value) == "string" or (type(value) == "table" and value.Key) then
+        table.insert(self._localized, {Object = label, Value = value, Property = "Text"})
+    end
+    return label
+end
+
+function WindowMethods:_icon(parent, name, properties, fallbackText)
+    local props = shallowCopy(properties)
+    local libraryName, iconName = string.match(name, "^([%a]+):(.+)$")
+    libraryName = string.lower(libraryName or "lucide")
+    iconName = iconName or name
+    local assetUrl
+    local imageRectSize
+    local imageRectOffset
+    local library = self.IconLibraries[libraryName]
+    if libraryName == "solar" then
+        iconName = string.lower(iconName)
+        assetUrl = library and library[iconName]
+        local hasStyle = false
+        for _, suffix in ipairs({"-bold-duotone", "-line-duotone", "-bold", "-broken", "-linear", "-outline"}) do
+            if string.sub(iconName, -#suffix) == suffix then
+                hasStyle = true
+                break
+            end
+        end
+        if not assetUrl and library and not hasStyle then
+            assetUrl = library[iconName .. "-linear"]
+        end
+    elseif libraryName == "lucide" and library then
+        local ok, asset = pcall(library.GetAsset, iconName)
+        if ok and type(asset) == "table" then
+            assetUrl = asset.Url
+            imageRectSize = asset.ImageRectSize
+            imageRectOffset = asset.ImageRectOffset
+        else
+            warn("[AstraUI] Unable to load Lucide icon " .. tostring(iconName) .. ": " .. tostring(ok and "asset not found" or asset))
+        end
+    end
+    if type(assetUrl) == "string" and assetUrl ~= "" then
+        local imageProps = {
+            Active = false,
+            BackgroundTransparency = 1,
+            Image = assetUrl,
+            ImageColor3 = props.ImageColor3 or props.TextColor3 or self.Theme.TextSecondary,
+            ImageTransparency = props.ImageTransparency or 0,
+            Selectable = false,
+            ScaleType = Enum.ScaleType.Fit,
+        }
+        for key, value in pairs(props) do
+            if key ~= "TextColor3" and key ~= "TextSize" and key ~= "TextXAlignment" and key ~= "TextYAlignment" then
+                imageProps[key] = value
+            end
+        end
+        if imageRectSize then
+            imageProps.ImageRectSize = imageRectSize
+        end
+        if imageRectOffset then
+            imageProps.ImageRectOffset = imageRectOffset
+        end
+        local icon = make("ImageLabel", imageProps, parent)
+        self:_trackColor(icon, imageProps.ImageColor3, "ImageColor3")
+        return icon
+    elseif libraryName == "solar" and library then
+        warn("[AstraUI] Unable to load Solar icon " .. tostring(iconName) .. ": asset not found")
+    elseif libraryName ~= "lucide" and libraryName ~= "solar" then
+        warn("[AstraUI] Unknown icon library " .. tostring(libraryName))
+    end
+    return self:_text(parent, fallbackText or "◇", props)
+end
+
+function WindowMethods:_button(parent, text, callback, options)
+    options = options or {}
+    local backgroundRole = options.Role or "ControlSurface"
+    local hoverRole = options.HoverRole or "ControlHover"
+    local strokeRole = options.StrokeRole or "ControlBorder"
+    local textRole = options.TextRole or (backgroundRole == "AccentSecondary" and "AccentForeground" or nil)
+    local hovered = false
+    local pressed = false
+    local buttonObject = make("TextButton", {
+        AutoButtonColor = false,
+        BackgroundColor3 = options.Background or self.Theme[backgroundRole],
+        BackgroundTransparency = options.BackgroundTransparency or 0,
+        BorderSizePixel = 0,
+        Font = options.Font or Enum.Font.GothamMedium,
+        Text = self:_resolveText(text),
+        TextColor3 = options.TextColor or self.Theme[textRole or "TextPrimary"],
+        TextSize = options.TextSize or 14,
+        TextTruncate = options.TextTruncate or Enum.TextTruncate.None,
+        TextXAlignment = options.TextXAlignment or Enum.TextXAlignment.Center,
+        TextWrapped = options.TextWrapped ~= false,
+        Selectable = true,
+        Size = options.Size or UDim2.new(1, 0, 0, options.Height or 44),
+        ZIndex = options.ZIndex or 10,
+    }, parent)
+    addCorner(buttonObject, options.Radius or 9, self, options.PreserveRadius)
+    if options.PaddingLeft or options.PaddingRight then
+        make("UIPadding", {
+            PaddingLeft = UDim.new(0, options.PaddingLeft or 0),
+            PaddingRight = UDim.new(0, options.PaddingRight or 0),
+        }, buttonObject)
+    end
+    local stroke = addStroke(
+        buttonObject,
+        options.Stroke or self.Theme[strokeRole],
+        options.StrokeTransparency or 0.65,
+        self,
+        strokeRole
+    )
+    self:_trackTheme(buttonObject, backgroundRole, "BackgroundColor3")
+    if options.TextColor then
+        self:_trackTextColor(buttonObject, options.TextColor)
+    else
+        self:_trackTheme(buttonObject, textRole or "TextPrimary", "TextColor3")
+    end
+    if type(text) == "string" or (type(text) == "table" and text.Key) then
+        table.insert(self._localized, {Object = buttonObject, Value = text, Property = "Text"})
+    end
+    local function resolveColorRole(color, fallbackRole)
+        if color == nil or color == self.Theme[fallbackRole] then
+            return fallbackRole
+        end
+        for _, themeRole in ipairs(THEME_COLOR_ROLE_ORDER) do
+            if color == self.Theme[themeRole] then
+                return themeRole
+            end
+        end
+        return nil
+    end
+    local backgroundColorRole = resolveColorRole(options.Background, backgroundRole)
+    local hoverColorRole = resolveColorRole(options.HoverBackground, hoverRole)
+    local pressedColor = options.PressedBackground or options.HoverBackground
+    local pressedColorRole = resolveColorRole(pressedColor, hoverRole)
+    local function resolveColor(color, role, colorRole)
+        if colorRole then
+            return self.Theme[colorRole]
+        end
+        return color or self.Theme[role]
+    end
+    local function applyBackgroundState()
+        if pressed then
+            buttonObject.BackgroundColor3 = resolveColor(pressedColor, hoverRole, pressedColorRole)
+        elseif hovered then
+            buttonObject.BackgroundColor3 = resolveColor(options.HoverBackground, hoverRole, hoverColorRole)
+        else
+            buttonObject.BackgroundColor3 = resolveColor(options.Background, backgroundRole, backgroundColorRole)
+        end
+    end
+    self._buttonThemeTargets = self._buttonThemeTargets or {}
+    table.insert(self._buttonThemeTargets, {
+        Object = buttonObject,
+        Apply = applyBackgroundState,
+    })
+    self:_connect(buttonObject.Activated, function()
+        if callback and not self._destroyed then
+            callback()
+        end
+    end, options.Owner)
+    self:_connect(buttonObject.MouseEnter, function()
+        if buttonObject.Active then
+            hovered = true
+            applyBackgroundState()
+            if buttonObject:GetAttribute("AstraChoiceOption") ~= true then
+                TweenService:Create(stroke, TweenInfo.new(0.14), {
+                    Transparency = options.HoverStrokeTransparency or 0.3,
+                }):Play()
+            end
+        end
+    end, options.Owner)
+    self:_connect(buttonObject.MouseLeave, function()
+        if buttonObject.Active then
+            hovered = false
+            applyBackgroundState()
+            local selected = buttonObject:GetAttribute("AstraChoiceSelected") == true
+            local currentStrokeRole = selected and "BorderActive" or strokeRole
+            self:_trackTheme(stroke, currentStrokeRole, "Color")
+            if buttonObject:GetAttribute("AstraChoiceOption") == true then
+                stroke.Transparency = 1
+            else
+                TweenService:Create(stroke, TweenInfo.new(0.14), {
+                    Transparency = selected and 0 or (options.StrokeTransparency or 0.65),
+                }):Play()
+            end
+        end
+    end, options.Owner)
+    self:_connect(buttonObject.InputBegan, function(input)
+        if buttonObject.Active and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            pressed = true
+            applyBackgroundState()
+        end
+    end, options.Owner)
+    self:_connect(buttonObject.InputEnded, function(input)
+        if buttonObject.Active and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            pressed = false
+            applyBackgroundState()
+        end
+    end, options.Owner)
+    self:_connect(buttonObject.SelectionGained, function()
+        if buttonObject:GetAttribute("AstraChoiceOption") == true then
+            return
+        end
+        self:_trackTheme(stroke, "BorderActive", "Color")
+        stroke.Color = self.Theme.BorderActive
+    end, options.Owner)
+    self:_connect(buttonObject.SelectionLost, function()
+        if buttonObject:GetAttribute("AstraChoiceOption") == true then
+            stroke.Transparency = 1
+            return
+        end
+        local selected = buttonObject:GetAttribute("AstraChoiceSelected") == true
+        local role = selected and "BorderActive" or strokeRole
+        self:_trackTheme(stroke, role, "Color")
+        stroke.Color = self.Theme[role]
+        stroke.Transparency = selected and 0 or (options.StrokeTransparency or 0.65)
+    end, options.Owner)
+    buttonObject:SetAttribute("AstraStroke", true)
+    return buttonObject, stroke
+end
+
+function WindowMethods:_warnCallback(label, callback, ...)
+    if type(callback) ~= "function" then
+        return
+    end
+    local args = table.pack(...)
+    task.spawn(function()
+        local ok, err = pcall(function()
+            callback(table.unpack(args, 1, args.n))
+        end)
+        if not ok then
+            warn("[AstraUI] " .. label .. " callback failed: " .. tostring(err))
+        end
+    end)
+end
+
+function WindowMethods:_registerComponent(component)
+    if component.Id then
+        assert(type(component.Id) == "string" and component.Id ~= "", "Component Id must be a non-empty string")
+        assert(not self._ids[component.Id], "Duplicate component Id: " .. tostring(component.Id))
+        self._ids[component.Id] = component
+    end
+    local originalDestroy = component.Destroy
+    if type(originalDestroy) == "function" then
+        component.Destroy = function(target, ...)
+            if target._destroyed then
+                return
+            end
+            if self._openOverlayComponent == target then
+                self:_closeOverlay()
+            end
+            local result = originalDestroy(target, ...)
+            target._destroyed = true
+            self:_unregisterComponent(target)
+            return result
+        end
+    end
+    table.insert(self._components, component)
+    return component
+end
+
+function WindowMethods:_unregisterComponent(component)
+    if component.Id and self._ids[component.Id] == component then
+        self._ids[component.Id] = nil
+    end
+    for index, value in ipairs(self._components) do
+        if value == component then
+            table.remove(self._components, index)
+            break
+        end
+    end
+end
+
+function WindowMethods:_updatePageCanvas(tab)
+    if not tab or not tab._pageLayout or not tab._page then
+        return
+    end
+    tab._page.CanvasSize = UDim2.new(0, 0, 0, tab._pageLayout.AbsoluteContentSize.Y + 32)
+end
+
+function WindowMethods:_styleTabs(animate)
+    local tweenInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    for _, item in ipairs(self._tabs) do
+        local selected = item == self._selectedTab
+        local backgroundRole = selected and "SecondarySurface" or "Surface"
+        local background = self.Theme[backgroundRole]
+        self:_trackTheme(item._button, backgroundRole, "BackgroundColor3")
+        local textColor = selected and self.Theme.TextPrimary or self.Theme.TextSecondary
+        local iconColor = selected and self.Theme.AccentSecondary or self.Theme.TextSecondary
+        local strokeColor = selected and self.Theme.AccentSecondary or self.Theme.Border
+        local strokeTransparency = selected and 0.65 or 1
+        if animate then
+            TweenService:Create(item._button, tweenInfo, {BackgroundColor3 = background}):Play()
+            TweenService:Create(item._nameLabel, tweenInfo, {TextColor3 = textColor}):Play()
+            if item._iconLabel then
+                local colorProperty = item._iconLabel:IsA("ImageLabel") and "ImageColor3" or "TextColor3"
+                TweenService:Create(item._iconLabel, tweenInfo, {[colorProperty] = iconColor}):Play()
+            end
+            TweenService:Create(item._stroke, tweenInfo, {
+                Color = strokeColor,
+                Transparency = strokeTransparency,
+            }):Play()
+        else
+            item._button.BackgroundColor3 = background
+            item._nameLabel.TextColor3 = textColor
+            if item._iconLabel then
+                local colorProperty = item._iconLabel:IsA("ImageLabel") and "ImageColor3" or "TextColor3"
+                item._iconLabel[colorProperty] = iconColor
+            end
+            item._stroke.Color = strokeColor
+            item._stroke.Transparency = strokeTransparency
+        end
+        item._nameLabel.Font = selected and Enum.Font.GothamBold or Enum.Font.GothamMedium
+    end
+end
+
+function WindowMethods:_selectTab(tab)
+    if self._destroyed or not tab then
+        return
+    end
+    local previousTab = self._selectedTab
+    self._selectedTab = tab
+    self._selectedTabId = tab._explicitId and tab.Id or nil
+    self:_styleTabs(true)
+    for _, item in ipairs(self._tabs) do
+        setVisible(item._page, item == tab)
+        if item._pageTransition then
+            item._pageTransition:Cancel()
+            item._pageTransition = nil
+        end
+        if item ~= tab then
+            item._page.Position = UDim2.new(0, 0, 0, 0)
+        end
+    end
+    if previousTab ~= tab then
+        tab._page.Position = UDim2.new(0, 0, 0, 8)
+        tab._pageTransition = TweenService:Create(
+            tab._page,
+            TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Position = UDim2.new(0, 0, 0, 0)}
+        )
+        tab._pageTransition:Play()
+    end
+    self._selectedTabLabel.Text = tab.Name
+    if self._narrow then
+        self._drawer.Visible = false
+    end
+    self._content.Position = UDim2.new(0, self._narrow and 0 or self._sidebarWidth, 0, 0)
+    self._content.Size = UDim2.new(1, self._narrow and 0 or -self._sidebarWidth, 1, 0)
+end
+
+function WindowMethods:_setResponsiveLayout(animateSidebar)
+    if self._destroyed or not self._panel then
+        return
+    end
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(1024, 768)
+    local insetTopLeft, insetBottomRight = GuiService:GetGuiInset()
+    local safeWidth = math.max(1, viewport.X - insetTopLeft.X - insetBottomRight.X - 20)
+    local safeHeight = math.max(1, viewport.Y - insetTopLeft.Y - insetBottomRight.Y - 20)
+    local narrow = safeWidth < 600
+    self._narrow = narrow
+    self._compact = safeWidth >= 600 and safeWidth < 900
+    local sidebarCollapsed = self._sidebarCollapsed
+    if sidebarCollapsed == nil then
+        sidebarCollapsed = self._compact
+    end
+    local requestedWidth = self._requestedSize.X.Offset + self._requestedSize.X.Scale * safeWidth
+    local requestedHeight = self._requestedSize.Y.Offset + self._requestedSize.Y.Scale * safeHeight
+    local width
+    local height
+    if self.Responsive then
+        width = math.min(requestedWidth, safeWidth)
+        height = math.min(requestedHeight, safeHeight)
+        if narrow then
+            width = safeWidth
+            height = safeHeight
+        end
+    else
+        width = math.min(requestedWidth, safeWidth)
+        height = math.min(requestedHeight, safeHeight)
+    end
+    local minimumWidth = math.min(narrow and 320 or 680, safeWidth)
+    local minimumHeight = math.min(narrow and 360 or 440, safeHeight)
+    width = math.max(math.min(width, safeWidth), minimumWidth)
+    height = math.max(math.min(height, safeHeight), minimumHeight)
+    self._panel.Size = UDim2.fromOffset(width, height)
+    if not self._layoutInitialized then
+        self._panel.Position = UDim2.new(
+            0.5,
+            (insetTopLeft.X - insetBottomRight.X) / 2,
+            0.5,
+            (insetTopLeft.Y - insetBottomRight.Y) / 2
+        )
+        self._layoutInitialized = true
+    else
+        local halfWidth = self._panel.AbsoluteSize.X / 2
+        local halfHeight = self._panel.AbsoluteSize.Y / 2
+        local x = clamp(
+            self._panel.Position.X.Offset,
+            -viewport.X / 2 + halfWidth + insetTopLeft.X,
+            viewport.X / 2 - halfWidth - insetBottomRight.X
+        )
+        local y = clamp(
+            self._panel.Position.Y.Offset,
+            -viewport.Y / 2 + halfHeight + insetTopLeft.Y,
+            viewport.Y / 2 - halfHeight - insetBottomRight.Y
+        )
+        self._panel.Position = UDim2.new(0.5, x, 0.5, y)
+    end
+
+    self._menuButton.Visible = true
+    self._menuButton.Text = ""
+    self._selectedTabLabel.Visible = false
+    self._titleLabel.Visible = not narrow
+    self._subtitleLabel.Visible = not narrow
+    self._logo.Visible = false
+    self._resizeHandle.Visible = self.Resizable and not narrow
+    self._sidebarWidth = sidebarCollapsed and 68 or 210
+    self._menuButton:SetAttribute("AstraLabel", narrow and "Open tab navigation" or (sidebarCollapsed and "Expand tab navigation" or "Collapse tab navigation"))
+    if self._updateSidebarToggleIcon then
+        self._updateSidebarToggleIcon()
+    end
+    self._toastContainer.Position = UDim2.new(1, -18, 1, -18)
+    self._toastContainer.Size = UDim2.new(0, math.max(1, math.min(320, safeWidth - 24)), 0, 320)
+    self._headerVersion.Visible = not narrow and self._headerVersion.Text ~= ""
+    self._discordButton.Visible = not narrow
+    self._settingsButton.Visible = true
+    self._settingsButton.Position = UDim2.new(1, narrow and -100 or -148, 0, 7)
+    if self._settingsPanel then
+        self._settingsPanel.AnchorPoint = narrow and Vector2.new(0.5, 0.5) or Vector2.new(1, 0)
+        self._settingsPanel.Position = narrow and UDim2.fromScale(0.5, 0.5) or UDim2.new(1, -12, 0, 58)
+        self._settingsPanel.Size = UDim2.fromOffset(
+            math.max(1, math.min(320, self._panel.AbsoluteSize.X - 24)),
+            math.max(1, math.min(350, self._panel.AbsoluteSize.Y - 24))
+        )
+    end
+    if self._search then
+        local searchFrame = self._search._frame
+        searchFrame.Parent = narrow and self._drawerList or self._tabList
+        searchFrame.Visible = narrow or not sidebarCollapsed
+        searchFrame.Size = UDim2.new(1, 0, 0, 34)
+    end
+    if narrow then
+        self._sidebar.Visible = false
+        self._drawer.Size = UDim2.new(0, math.min(250, width - 48), 1, 0)
+        self._content.Position = UDim2.new(0, 0, 0, 0)
+        self._content.Size = UDim2.new(1, 0, 1, 0)
+    else
+        self._drawer.Visible = false
+        self._sidebar.Visible = true
+        local sidebarSize = UDim2.new(0, self._sidebarWidth, 1, 0)
+        local contentPosition = UDim2.new(0, self._sidebarWidth, 0, 0)
+        local contentSize = UDim2.new(1, -self._sidebarWidth, 1, 0)
+        if animateSidebar then
+            local tweenInfo = TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            TweenService:Create(self._sidebar, tweenInfo, {Size = sidebarSize}):Play()
+            TweenService:Create(self._content, tweenInfo, {
+                Position = contentPosition,
+                Size = contentSize,
+            }):Play()
+        else
+            self._sidebar.Size = sidebarSize
+            self._content.Position = contentPosition
+            self._content.Size = contentSize
+        end
+    end
+    for _, tab in ipairs(self._tabs) do
+        local iconOnly = sidebarCollapsed and not narrow
+        tab._nameLabel.Visible = not iconOnly
+        tab._button.Visible = not (tab._category and tab._category.Collapsed and not iconOnly)
+        local buttonSize = iconOnly and UDim2.new(1, -10, 0, 46) or UDim2.new(1, -16, 0, 46)
+        if animateSidebar then
+            TweenService:Create(tab._button, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = buttonSize,
+            }):Play()
+        else
+            tab._button.Size = buttonSize
+        end
+        tab._button.Text = iconOnly and (tab._iconLabel and "" or string.sub(tab.Name, 1, 1)) or ""
+        tab._button.Parent = narrow and self._drawerList or (self._compact and self._tabList or self._tabList)
+        if tab._iconLabel then
+            tab._iconLabel.Visible = true
+            if iconOnly and not narrow then
+                tab._iconLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+                tab._iconLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+            else
+                tab._iconLabel.AnchorPoint = Vector2.new(0, 0.5)
+                tab._iconLabel.Position = UDim2.new(0, 12, 0.5, 0)
+            end
+        end
+    end
+    for _, category in pairs(self._tabCategories) do
+        category.Header.Visible = not (sidebarCollapsed and not narrow)
+        category.Header.Parent = narrow and self._drawerList or self._tabList
+        category.Icon.Visible = not (sidebarCollapsed and not narrow)
+    end
+    for _, tab in ipairs(self._tabs) do
+        self:_updatePageCanvas(tab)
+        if tab._sideColumns then
+            tab._sideColumns.Relayout()
+        end
+        for _, cardLayout in ipairs(tab._cardLayouts) do
+            cardLayout()
+        end
+    end
+end
+
+function WindowMethods:_createOverlay()
+    if self._overlay then
+        self._overlay:Destroy()
+    end
+    local overlay = make("Frame", {
+        Active = true,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 100,
+    }, self._panel)
+    self._overlay = overlay
+    self._overlayOwner = {_connections = {}}
+    return overlay
+end
+
+function WindowMethods:_closeOverlay()
+    if self._overlayOwner then
+        for _, connection in ipairs(self._overlayOwner._connections) do
+            if connection.Connected then
+                connection:Disconnect()
+            end
+        end
+        self._overlayOwner = nil
+    end
+    if self._overlay then
+        self._overlay:Destroy()
+        self._overlay = nil
+    end
+    self._openOverlayComponent = nil
+    self._settingsPanel = nil
+    self._capturingToggleKey = false
+    self._settingsRefreshLocale = nil
+    self._settingsRefreshKeybind = nil
+end
+
+function WindowMethods:_addToast(config)
+    validConfig(config, "Notify")
+    local allowed = {Success = true, Info = true, Warning = true, Error = true}
+    local kind = config.Type or "Info"
+    assert(allowed[kind], "Notify.Type must be Success, Info, Warning, or Error")
+    local duration = config.Duration == nil and 3 or config.Duration
+    assert(type(duration) == "number" and duration >= 0, "Notify.Duration must be a non-negative number")
+    if #self._toasts >= 4 then
+        self._toasts[1]:Dismiss()
+    end
+    local colors = {
+        Success = self.Theme.Success,
+        Info = self.Theme.AccentSecondary,
+        Warning = self.Theme.Warning,
+        Error = self.Theme.Danger,
+    }
+    local colorRoles = {
+        Success = "Success",
+        Info = "AccentSecondary",
+        Warning = "Warning",
+        Error = "Danger",
+    }
+    local toastFrame = make("Frame", {
+        BackgroundColor3 = self.Theme.SurfaceRaised,
+        BackgroundTransparency = 0.03,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 76),
+        ZIndex = 201,
+    }, self._toastContainer)
+    self:_trackTheme(toastFrame, "SurfaceRaised", "BackgroundColor3")
+    addCorner(toastFrame, 12, self)
+    addStroke(toastFrame, colors[kind], 0.35, self, colorRoles[kind])
+    local marker = make("Frame", {
+        BackgroundColor3 = colors[kind],
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 0, 10),
+        Size = UDim2.new(0, 3, 1, -20),
+        ZIndex = 202,
+    }, toastFrame)
+    self:_trackTheme(marker, colorRoles[kind], "BackgroundColor3")
+    addCorner(marker, 3)
+    self:_text(toastFrame, config.Title or kind, {
+        Font = Enum.Font.GothamBold,
+        Position = UDim2.new(0, 14, 0, 8),
+        Size = UDim2.new(1, -54, 0, 22),
+        TextSize = 14,
+        ZIndex = 202,
+    })
+    self:_text(toastFrame, config.Content or "", {
+        Position = UDim2.new(0, 14, 0, 31),
+        Size = UDim2.new(1, -24, 0, 36),
+        TextColor3 = self.Theme.TextSecondary,
+        TextSize = 12,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 202,
+    })
+    local toast = {Frame = toastFrame, _window = self, _dismissed = false, _connections = {}}
+    function toast:Dismiss()
+        if self._dismissed then
+            return
+        end
+        self._dismissed = true
+        for _, connection in ipairs(self._connections) do
+            if connection.Connected then
+                connection:Disconnect()
+            end
+        end
+        for index, value in ipairs(self._window._toasts) do
+            if value == self then
+                table.remove(self._window._toasts, index)
+                break
+            end
+        end
+        if self.Frame and self.Frame.Parent then
+            local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            TweenService:Create(self.Frame, tweenInfo, {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+            }):Play()
+            for _, descendant in ipairs(self.Frame:GetDescendants()) do
+                local properties
+                if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
+                    properties = {TextTransparency = 1}
+                elseif descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
+                    properties = {ImageTransparency = 1}
+                elseif descendant:IsA("UIStroke") then
+                    properties = {Transparency = 1}
+                elseif descendant:IsA("GuiObject") then
+                    properties = {BackgroundTransparency = 1}
+                end
+                if properties then
+                    TweenService:Create(descendant, tweenInfo, properties):Play()
+                end
+            end
+            task.delay(tweenInfo.Time, function()
+                if self.Frame and self.Frame.Parent then
+                    self.Frame:Destroy()
+                end
+            end)
+        end
+    end
+    local close = self:_button(toastFrame, "×", function()
+        toast:Dismiss()
+    end, {
+        Size = UDim2.new(0, 44, 0, 44),
+        Position = UDim2.new(1, -48, 0, 2),
+        Height = 44,
+        Background = self.Theme.SurfaceRaised,
+        Role = "SurfaceRaised",
+        ZIndex = 203,
+        Owner = toast,
+    })
+    close.Position = UDim2.new(1, -48, 0, 2)
+    table.insert(self._toasts, toast)
+    if duration > 0 then
+        task.delay(duration, function()
+            toast:Dismiss()
+        end)
+    end
+    return toast
+end
+
+function WindowMethods:Notify(config)
+    assert(not self._destroyed, "Cannot notify on a destroyed window")
+    return self:_addToast(config)
+end
+
+function WindowMethods:SetHeaderVersion(version)
+    assert(version == nil or type(version) == "string", "SetHeaderVersion expects a string or nil")
+    self._headerVersionText = version or ""
+    self._headerVersion.Text = version or ""
+    self._headerVersion.Visible = not self._narrow and version ~= nil and version ~= ""
+end
+
+function WindowMethods:SetDiscordLink(url, copyCallback)
+    assert(url == nil or type(url) == "string", "SetDiscordLink expects a URL string or nil")
+    assert(copyCallback == nil or type(copyCallback) == "function", "SetDiscordLink copy callback must be a function")
+    self._discordUrl = url
+    self._discordCopy = copyCallback
+end
+
+function WindowMethods:Dialog(config)
+    validConfig(config, "Dialog")
+    assert(type(config.Actions) == "table" and #config.Actions > 0, "Dialog.Actions must contain at least one action")
+    self:_closeOverlay()
+    local overlay = self:_createOverlay()
+    overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+    overlay.BackgroundTransparency = 0.42
+    overlay.ZIndex = 150
+    local card = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = self.Theme.Surface,
+        BorderSizePixel = 0,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(1, -32, 0, 220),
+        ZIndex = 151,
+    }, overlay)
+    self:_trackTheme(card, "Surface", "BackgroundColor3")
+    card.Size = UDim2.new(1, -32, 0, math.min(300, 160 + #config.Actions * 48))
+    addCorner(card, 14, self)
+    addStroke(card, self.Theme.Border, 0.3, self)
+    self:_text(card, config.Title or "Notice", {
+        Position = UDim2.new(0, 20, 0, 16),
+        Size = UDim2.new(1, -40, 0, 28),
+        Font = Enum.Font.GothamBold,
+        TextSize = 18,
+        ZIndex = 152,
+    })
+    self:_text(card, config.Content or "", {
+        Position = UDim2.new(0, 20, 0, 52),
+        Size = UDim2.new(1, -40, 0, 60),
+        TextColor3 = self.Theme.TextSecondary,
+        TextSize = 14,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 152,
+    })
+    local actionList = make("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 20, 1, -56),
+        Size = UDim2.new(1, -40, 0, 44),
+        ZIndex = 152,
+    }, card)
+    make("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalAlignment = Enum.HorizontalAlignment.Right,
+        Padding = UDim.new(0, 8),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, actionList)
+    local dialog = {Close = function(_dialog) self:_closeOverlay() end}
+    dialog.Destroy = dialog.Close
+    for _, action in ipairs(config.Actions) do
+        local actionConfig = action
+        assert(actionConfig.Name ~= nil, "Dialog action Name is required")
+        assert(actionConfig.Style == nil or actionConfig.Style == "Danger" or actionConfig.Style == "Secondary" or actionConfig.Style == "Primary", "Invalid Dialog action Style")
+        local role = actionConfig.Style == "Danger" and "Danger"
+            or (actionConfig.Style == "Secondary" and "SecondarySurface" or "AccentSecondary")
+        local strokeRole = actionConfig.Style == "Secondary" and "Accent" or role
+        local strokeColor = self.Theme[strokeRole]
+        local actionButton = self:_button(actionList, actionConfig.Name, function()
+            if actionConfig.Callback then
+                self:_warnCallback("Dialog action " .. safeString(actionConfig.Name), actionConfig.Callback)
+            end
+            if actionConfig.Close ~= false then
+                dialog:Close()
+            end
+        end, {
+            Owner = self._overlayOwner,
+            Size = UDim2.new(1 / #config.Actions, -((#config.Actions - 1) * 8 / #config.Actions), 0, 44),
+            Height = 44,
+            Background = self.Theme[role],
+            Stroke = strokeColor,
+            StrokeTransparency = actionConfig.Style == "Secondary" and 0.15 or 0.25,
+            TextColor = self.Theme[role == "AccentSecondary" and "AccentForeground" or "TextPrimary"],
+            Role = role,
+            StrokeRole = strokeRole,
+            ZIndex = 153,
+        })
+        actionButton.LayoutOrder = #actionList:GetChildren()
+    end
+    return dialog
+end
+
+function WindowMethods:SetTheme(theme)
+    validConfig(theme, "SetTheme")
+    local merged = shallowCopy(self.Theme)
+    local retainsPreset = true
+    for key, value in pairs(theme) do
+        assert(THEME_KEYS[key], "Unknown theme token: " .. tostring(key))
+        if key == "CornerRadius" then
+            assert(type(value) == "number" and value >= 0 and value <= 32, "Theme.CornerRadius must be between 0 and 32")
+        elseif key == "Density" then
+            assert(value == "Compact" or value == "Comfortable", "Theme.Density must be Compact or Comfortable")
+        else
+            assert(typeof(value) == "Color3", "Theme." .. key .. " must be a Color3")
+        end
+        merged[key] = value
+        if not self._applyingThemePreset and table.find(THEME_ACCENT_ROLES, key) then
+            self._themeAccentOverrides[key] = value
+        end
+        if key ~= "Accent" and key ~= "AccentSecondary" and key ~= "BorderActive" and key ~= "Success" then
+            retainsPreset = false
+        end
+    end
+    if not retainsPreset then
+        self._themePreset = nil
+        if self._lilithBackgroundImage then
+            self._lilithBackgroundImage.Visible = false
+        end
+        self:_applyLilithSurfaceMode()
+    end
+    self.Theme = merged
+    for _, target in ipairs(self._themeTargets) do
+        local object = target.Object
+        if object and object.Parent then
+            local value = self.Theme[target.Role]
+            if value ~= nil then
+                if target.Property then
+                    object[target.Property] = value
+                elseif target.Role == "CornerRadius" then
+                    object.CornerRadius = UDim.new(0, value)
+                end
+            end
+        end
+    end
+    for index = #self._buttonThemeTargets, 1, -1 do
+        local target = self._buttonThemeTargets[index]
+        if target.Object and target.Object.Parent then
+            target.Apply()
+        else
+            table.remove(self._buttonThemeTargets, index)
+        end
+    end
+    for _, tab in ipairs(self._tabs) do
+        tab._page.ScrollBarImageColor3 = self.Theme.AccentSecondary
+    end
+    self:_styleTabs(false)
+    if self._auroraGradient then
+        self._auroraGradient.Color = ColorSequence.new(self.Theme.Accent, self.Theme.AccentSecondary)
+        self._auroraGradient.Parent.BackgroundColor3 = self.Theme.Accent
+    end
+    for _, component in ipairs(shallowCopy(self._components)) do
+        if component._kind ~= "Button" and component.SetValue and component._value ~= nil then
+            local ok, err = pcall(function()
+                component:SetValue(component._value)
+            end)
+            if not ok then
+                warn("[AstraUI] Failed to refresh " .. tostring(component.Name or component._kind) .. " after theme update: " .. tostring(err))
+            end
+        end
+        if component._kind == "Input" and component._errorLabel and component._errorLabel.Visible then
+            component._inputStroke.Color = self.Theme.Danger
+        end
+        if component._kind == "Badge" and component.SetType then
+            component:SetType(component._badgeType)
+        end
+    end
+    if self._settingsRefreshTheme then
+        self._settingsRefreshTheme()
+    end
+end
+
+function WindowMethods:SetThemePreset(name)
+    assert(name == "Dark" or name == "Light" or name == "Lilith",
+        "SetThemePreset expects Dark, Light, or Lilith")
+    local preset = name == "Dark" and DEFAULT_THEME
+        or (name == "Lilith" and LILITH_THEME or LIGHT_THEME)
+    local palette = shallowCopy(preset)
+    if name ~= "Lilith" then
+        for _, token in ipairs(THEME_ACCENT_ROLES) do
+            if self._themeAccentOverrides[token] then
+                palette[token] = self._themeAccentOverrides[token]
+            end
+        end
+    end
+    self._applyingThemePreset = true
+    local ok, err = pcall(self.SetTheme, self, palette)
+    self._applyingThemePreset = false
+    if not ok then
+        error(err, 0)
+    end
+    self._themePreset = name
+    if self._lilithBackgroundImage then
+        self._lilithBackgroundImage.Visible = name == "Lilith" and self._lilithImageLoadState == "loaded"
+        self:_applyLilithSurfaceMode()
+        if name == "Lilith" and self._lilithImageLoadState ~= "loaded"
+            and self._lilithImageLoadState ~= "loading" then
+            self._lilithImageLoadState = "loading"
+            loadRestorePng(self, LILITH_BACKGROUND_URL, self._pngDecoder, self._pngDecoderUrl, self._lilithBackgroundImage)
+        end
+    end
+    if self._settingsRefreshTheme then
+        self._settingsRefreshTheme()
+    end
+end
+
+function WindowMethods:SetLocale(locale)
+    assert(type(locale) == "string", "SetLocale expects a locale string")
+    self.Localization.Locale = locale
+    for _, item in ipairs(self._localized) do
+        if item.Object and item.Object.Parent then
+            item.Object[item.Property] = self:_resolveText(item.Value)
+        end
+    end
+    for _, component in ipairs(self._components) do
+        local config = component._config
+        if config then
+            local nameValue = config.Name or config.Title
+            if nameValue ~= nil then
+                component.Name = self:_resolveText(nameValue)
+            end
+            if config.Description ~= nil then
+                component.Description = self:_resolveText(config.Description)
+            end
+        end
+    end
+    for _, tab in ipairs(self._tabs) do
+        tab.Name = self:_resolveText(tab._nameValue)
+        tab._nameLabel.Text = tab.Name
+        local sidebarCollapsed = self._sidebarCollapsed
+        if sidebarCollapsed == nil then
+            sidebarCollapsed = self._compact
+        end
+        tab._button.Text = sidebarCollapsed and (tab._iconLabel and "" or string.sub(tab.Name, 1, 1)) or ""
+        self:_updatePageCanvas(tab)
+    end
+    if self._selectedTab then
+        self._selectedTabLabel.Text = self._selectedTab.Name
+    end
+    for _, tab in ipairs(self._tabs) do
+        for _, cardLayout in ipairs(tab._cardLayouts) do
+            cardLayout()
+        end
+    end
+    if self._settingsRefreshLocale then
+        self._settingsRefreshLocale()
+    end
+end
+
+function WindowMethods:SetVisible(visible)
+    assert(type(visible) == "boolean", "SetVisible expects a boolean")
+    if self._destroyed or visible == self._visibilityTarget then
+        return
+    end
+    self._visibilityTarget = visible
+    if not visible and self._overlay then
+        self:_closeOverlay()
+    end
+    if self._visibilityTween then
+        self._visibilityTween:Cancel()
+        self._visibilityTween = nil
+    end
+    if visible and not self._panel.Visible then
+        self._panelScale.Scale = 0.92
+        self._panel.Visible = true
+    end
+    if self._restoreButton then
+        self._restoreButton.Visible = true
+    end
+    local tween = TweenService:Create(
+        self._panelScale,
+        TweenInfo.new(visible and 0.2 or 0.15, Enum.EasingStyle.Quad,
+            visible and Enum.EasingDirection.Out or Enum.EasingDirection.In),
+        {Scale = visible and 1 or 0.96}
+    )
+    self._visibilityTween = tween
+    local completedConnection
+    completedConnection = tween.Completed:Connect(function(playbackState)
+        completedConnection:Disconnect()
+        if self._visibilityTween ~= tween then
+            return
+        end
+        self._visibilityTween = nil
+        if playbackState == Enum.PlaybackState.Completed and not visible and not self._destroyed then
+            self._panel.Visible = false
+        end
+    end)
+    tween:Play()
+end
+
+function WindowMethods:SetToggleKey(keyCode)
+    assert(isKeyCode(keyCode), "SetToggleKey expects an Enum.KeyCode")
+    self._toggleKey = keyCode
+    if self._settingsRefreshKeybind then
+        self._settingsRefreshKeybind()
+    end
+end
+
+function WindowMethods:SetResizable(resizable)
+    assert(type(resizable) == "boolean", "SetResizable expects a boolean")
+    self.Resizable = resizable
+    if self._resizeHandle then
+        self._resizeHandle.Visible = resizable and not self._narrow
+    end
+    if self._settingsRefreshLocale then
+        self._settingsRefreshLocale()
+    end
+end
+
+function WindowMethods:SetDraggable(draggable)
+    assert(type(draggable) == "boolean", "SetDraggable expects a boolean")
+    self._draggable = draggable
+    if self._settingsRefreshLocale then
+        self._settingsRefreshLocale()
+    end
+end
+
+function WindowMethods:OpenSettings()
+    assert(not self._destroyed, "Cannot open settings on a destroyed window")
+    if self._settingsPanel then
+        self:_closeOverlay()
+        return
+    end
+    self:_closeOverlay()
+    local overlay = self:_createOverlay()
+    overlay.BackgroundTransparency = 1
+    overlay.ZIndex = 100
+
+    local panel = make("Frame", {
+        AnchorPoint = self._narrow and Vector2.new(0.5, 0.5) or Vector2.new(1, 0),
+        BackgroundColor3 = self.Theme.Surface,
+        BorderSizePixel = 0,
+        Position = self._narrow and UDim2.fromScale(0.5, 0.5) or UDim2.new(1, -12, 0, 58),
+        Size = UDim2.fromOffset(
+            math.max(1, math.min(320, self._panel.AbsoluteSize.X - 24)),
+            math.max(1, math.min(350, self._panel.AbsoluteSize.Y - 24))
+        ),
+        ZIndex = 120,
+    }, overlay)
+    self._settingsPanel = panel
+    self:_trackTheme(panel, "Surface", "BackgroundColor3")
+    addCorner(panel, 10, self)
+    addStroke(panel, self.Theme.WindowBorder, 0.15, self, "WindowBorder")
+
+    local header = make("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 46),
+        ZIndex = 121,
+    }, panel)
+    local title = self:_text(header, "Settings", {
+        Position = UDim2.new(0, 16, 0, 0),
+        Size = UDim2.new(1, -64, 1, 0),
+        Font = Enum.Font.GothamBold,
+        TextSize = 15,
+        ZIndex = 122,
+    })
+    local closeButton = self:_button(header, "", function()
+        self:_closeOverlay()
+    end, {
+        Position = UDim2.new(1, -40, 0, 6),
+        Size = UDim2.fromOffset(32, 32),
+        Height = 32,
+        Role = "SurfaceRaised",
+        ZIndex = 122,
+        Owner = self._overlayOwner,
+    })
+    closeButton.Position = UDim2.new(1, -40, 0, 6)
+    self:_icon(closeButton, "x", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(15, 15),
+        TextColor3 = self.Theme.TextSecondary,
+        ZIndex = 123,
+    }, "x")
+    local headerDivider = make("Frame", {
+        BackgroundColor3 = self.Theme.Border,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 14, 1, -1),
+        Size = UDim2.new(1, -28, 0, 1),
+        ZIndex = 122,
+    }, header)
+    self:_trackTheme(headerDivider, "Border", "BackgroundColor3")
+
+    local content = make("ScrollingFrame", {
+        Active = true,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0, 10, 0, 46),
+        ScrollBarImageColor3 = self.Theme.AccentSecondary,
+        ScrollBarThickness = 3,
+        Size = UDim2.new(1, -20, 1, -56),
+        ZIndex = 121,
+    }, panel)
+    self:_trackTheme(content, "AccentSecondary", "ScrollBarImageColor3")
+    local contentPadding = make("UIPadding", {
+        PaddingBottom = UDim.new(0, 10),
+        PaddingLeft = UDim.new(0, 2),
+        PaddingRight = UDim.new(0, 6),
+        PaddingTop = UDim.new(0, 2),
+    }, content)
+    local contentLayout = make("UIListLayout", {
+        Padding = UDim.new(0, 6),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, content)
+    self:_connect(contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+        if content.Parent then
+            content.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + contentPadding.PaddingTop.Offset + contentPadding.PaddingBottom.Offset)
+        end
+    end, self._overlayOwner)
+
+    local order = 0
+    local function addLabel(english, thai)
+        order = order + 1
+        local label = self:_text(content, english, {
+            LayoutOrder = order,
+            Size = UDim2.new(1, 0, 0, 18),
+            Font = Enum.Font.GothamMedium,
+            TextColor3 = self.Theme.TextMuted,
+            TextSize = 11,
+            ZIndex = 122,
+        })
+        label:SetAttribute("EnglishText", english)
+        label:SetAttribute("ThaiText", thai)
+        return label
+    end
+    local function addRow(height)
+        order = order + 1
+        local row = make("Frame", {
+            BackgroundTransparency = 1,
+            LayoutOrder = order,
+            Size = UDim2.new(1, 0, 0, height),
+            ZIndex = 122,
+        }, content)
+        return row
+    end
+    local function addChoice(row, text, callback, widthScale, layoutOrder)
+        local button, stroke = self:_button(row, text, callback, {
+            Size = UDim2.new(widthScale, -4, 1, 0),
+            Height = 34,
+            Radius = 0,
+            Role = "SurfaceRaised",
+            Stroke = self.Theme.Border,
+            StrokeRole = "Border",
+            StrokeTransparency = 0.4,
+            TextSize = 11,
+            ZIndex = 123,
+            Owner = self._overlayOwner,
+        })
+        button.LayoutOrder = layoutOrder
+        button:SetAttribute("AstraChoiceOption", true)
+        button:SetAttribute("AstraChoiceSelected", false)
+        stroke.Transparency = 1
+        return button, stroke
+    end
+    local function setChoiceSelected(button, stroke, selected)
+        button:SetAttribute("AstraChoiceSelected", selected)
+        local role = selected and "BorderActive" or "Border"
+        self:_trackTheme(button, role, "BorderColor3")
+        button.BorderColor3 = self.Theme[role]
+        button.BorderSizePixel = selected and 1 or 0
+        stroke.Transparency = 1
+        button.TextColor3 = self.Theme.TextPrimary
+    end
+    local function layoutRow(row, padding)
+        make("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            Padding = UDim.new(0, padding or 6),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        }, row)
+    end
+    local function stateWord(enabled)
+        local isThai = string.sub(self.Localization.Locale, 1, 2) == "th"
+        if enabled then
+            return isThai and "เปิด" or "On"
+        end
+        return isThai and "ปิด" or "Off"
+    end
+
+    local themeLabel = addLabel("Color theme", "ธีมสี")
+    local themesRow = addRow(36)
+    layoutRow(themesRow)
+    local darkButton, darkStroke
+    local lightButton, lightStroke
+    local lilithButton, lilithStroke
+    darkButton, darkStroke = addChoice(themesRow, "Dark", function()
+        self:SetThemePreset("Dark")
+    end, 1 / 3, 1)
+    lightButton, lightStroke = addChoice(themesRow, "Light", function()
+        self:SetThemePreset("Light")
+    end, 1 / 3, 2)
+    lilithButton, lilithStroke = addChoice(themesRow, "Lilith", function()
+        self:SetThemePreset("Lilith")
+    end, 1 / 3, 3)
+    local function refreshThemeSelection()
+        for _, item in ipairs({
+            {Name = "Dark", Button = darkButton, Stroke = darkStroke},
+            {Name = "Light", Button = lightButton, Stroke = lightStroke},
+            {Name = "Lilith", Button = lilithButton, Stroke = lilithStroke},
+        }) do
+            local selected = self._themePreset == item.Name
+            setChoiceSelected(item.Button, item.Stroke, selected)
+        end
+    end
+    self._settingsRefreshTheme = refreshThemeSelection
+    refreshThemeSelection()
+
+    local languageLabel = addLabel("Language", "ภาษา")
+    local languageRow = addRow(34)
+    layoutRow(languageRow)
+    local englishButton, englishStroke = addChoice(languageRow, "English", function()
+        self:SetLocale("en-US")
+    end, 0.5, 1)
+    local thaiButton, thaiStroke = addChoice(languageRow, "ไทย", function()
+        self:SetLocale("th-TH")
+    end, 0.5, 2)
+
+    local keyLabel = addLabel("UI toggle key", "ปุ่มเปิด/ปิด UI")
+    local keyButton
+    keyButton = addChoice(addRow(36), "", function()
+        self._capturingToggleKey = true
+        keyButton.Text = string.sub(self.Localization.Locale, 1, 2) == "th" and "กดปุ่มที่ต้องการ..." or "Press a key..."
+    end, 1, 1)
+    local function refreshKeybind()
+        if not keyButton.Parent then
+            return
+        end
+        if self._capturingToggleKey then
+            keyButton.Text = string.sub(self.Localization.Locale, 1, 2) == "th" and "กดปุ่มที่ต้องการ..." or "Press a key..."
+        else
+            keyButton.Text = self._toggleKey and string.gsub(tostring(self._toggleKey), "^Enum%.KeyCode%.", "") or "None"
+        end
+    end
+    self._settingsRefreshKeybind = refreshKeybind
+    refreshKeybind()
+
+    local behaviorLabel = addLabel("Window behavior", "การทำงานของหน้าต่าง")
+    local behaviorRow = addRow(34)
+    layoutRow(behaviorRow)
+    local resizableButton
+    resizableButton = addChoice(behaviorRow, "", function()
+        self:SetResizable(not self.Resizable)
+        resizableButton.Text = (string.sub(self.Localization.Locale, 1, 2) == "th" and "ปรับขนาด: " or "Resize: ") .. stateWord(self.Resizable)
+    end, 0.5, 1)
+    local draggableButton
+    draggableButton = addChoice(behaviorRow, "", function()
+        self:SetDraggable(not self._draggable)
+        draggableButton.Text = (string.sub(self.Localization.Locale, 1, 2) == "th" and "ลาก: " or "Drag: ") .. stateWord(self._draggable)
+    end, 0.5, 2)
+
+    local function refreshLocale()
+        if not panel.Parent then
+            return
+        end
+        local isThai = string.sub(self.Localization.Locale, 1, 2) == "th"
+        title.Text = isThai and "ตั้งค่า" or "Settings"
+        themeLabel.Text = isThai and themeLabel:GetAttribute("ThaiText") or themeLabel:GetAttribute("EnglishText")
+        languageLabel.Text = isThai and languageLabel:GetAttribute("ThaiText") or languageLabel:GetAttribute("EnglishText")
+        keyLabel.Text = isThai and keyLabel:GetAttribute("ThaiText") or keyLabel:GetAttribute("EnglishText")
+        behaviorLabel.Text = isThai and behaviorLabel:GetAttribute("ThaiText") or behaviorLabel:GetAttribute("EnglishText")
+        resizableButton.Text = (isThai and "ปรับขนาด: " or "Resize: ") .. stateWord(self.Resizable)
+        draggableButton.Text = (isThai and "ลาก: " or "Drag: ") .. stateWord(self._draggable)
+        refreshKeybind()
+        setChoiceSelected(englishButton, englishStroke, not isThai)
+        setChoiceSelected(thaiButton, thaiStroke, isThai)
+    end
+    self._settingsRefreshLocale = refreshLocale
+    refreshLocale()
+    content.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + contentPadding.PaddingTop.Offset + contentPadding.PaddingBottom.Offset)
+
+    self:_connect(overlay.InputBegan, function(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        local position = input.Position
+        local topLeft = panel.AbsolutePosition
+        local bottomRight = topLeft + panel.AbsoluteSize
+        if position.X < topLeft.X or position.X > bottomRight.X or position.Y < topLeft.Y or position.Y > bottomRight.Y then
+            self:_closeOverlay()
+        end
+    end, self._overlayOwner)
+end
+
+function WindowMethods:SetSize(size)
+    assert(typeof(size) == "UDim2", "SetSize expects a UDim2")
+    self._requestedSize = size
+    self:_setResponsiveLayout()
+end
+
+function WindowMethods:_beginDrag(input)
+    if self._narrow or not self._draggable then
+        return
+    end
+    self._dragInput = input
+    self._dragStart = input.Position
+    self._dragStartPosition = self._panel.Position
+end
+
+function WindowMethods:_updateDrag(input)
+    if not self._dragInput or self._narrow then
+        return
+    end
+    if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+    local delta = input.Position - self._dragStart
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(1024, 768)
+    local halfWidth = self._panel.AbsoluteSize.X / 2
+    local halfHeight = self._panel.AbsoluteSize.Y / 2
+    local x = self._dragStartPosition.X.Offset + delta.X
+    local y = self._dragStartPosition.Y.Offset + delta.Y
+    local insetTopLeft, insetBottomRight = GuiService:GetGuiInset()
+    x = clamp(x, -viewport.X / 2 + halfWidth + insetTopLeft.X, viewport.X / 2 - halfWidth - insetBottomRight.X)
+    y = clamp(y, -viewport.Y / 2 + halfHeight + insetTopLeft.Y, viewport.Y / 2 - halfHeight - insetBottomRight.Y)
+    self._panel.Position = UDim2.new(0.5, x, 0.5, y)
+end
+
+function WindowMethods:_beginRestoreButtonDrag(input)
+    if not self._restoreButton.Visible
+        or (input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch) then
+        return
+    end
+    self._restoreDragInput = input
+    self._restoreDragStart = input.Position
+    self._restoreDragStartPosition = self._restoreButton.Position
+    self._restoreWasDragged = false
+end
+
+function WindowMethods:_updateRestoreButtonDrag(input)
+    if not self._restoreDragInput
+        or (input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch) then
+        return
+    end
+    if self._restoreDragInput.UserInputType == Enum.UserInputType.Touch and input ~= self._restoreDragInput then
+        return
+    end
+    local delta = input.Position - self._restoreDragStart
+    if math.abs(delta.X) > 5 or math.abs(delta.Y) > 5 then
+        self._restoreWasDragged = true
+    end
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(1024, 768)
+    local insetTopLeft, insetBottomRight = GuiService:GetGuiInset()
+    local buttonSize = self._restoreButton.AbsoluteSize
+    local maxX = math.max(8, viewport.X - insetBottomRight.X - buttonSize.X - 8)
+    local maxY = math.max(8, viewport.Y - insetTopLeft.Y - insetBottomRight.Y - buttonSize.Y - 8)
+    local x = clamp(self._restoreDragStartPosition.X.Offset + delta.X, 8, maxX)
+    local y = clamp(self._restoreDragStartPosition.Y.Offset + delta.Y, 8, maxY)
+    self._restoreButton.Position = UDim2.fromOffset(x, y)
+end
+
+function WindowMethods:_beginResize(input)
+    if not self.Resizable or self._narrow then
+        return
+    end
+    self._resizeInput = input
+    self._resizeStart = input.Position
+    self._resizeStartSize = self._panel.AbsoluteSize
+end
+
+function WindowMethods:_updateResize(input)
+    if not self._resizeInput then
+        return
+    end
+    if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+    local delta = input.Position - self._resizeStart
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or self._resizeStartSize
+    local insetTopLeft, insetBottomRight = GuiService:GetGuiInset()
+    local maxWidth = viewport.X - insetTopLeft.X - insetBottomRight.X - 20
+    local maxHeight = viewport.Y - insetTopLeft.Y - insetBottomRight.Y - 20
+    local width = clamp(self._resizeStartSize.X + delta.X, math.min(680, maxWidth), maxWidth)
+    local height = clamp(self._resizeStartSize.Y + delta.Y, math.min(440, maxHeight), maxHeight)
+    self._requestedSize = UDim2.fromOffset(width, height)
+    self:_setResponsiveLayout()
+end
+
+function WindowMethods:GetState()
+    local values = {}
+    for _, component in ipairs(shallowCopy(self._components)) do
+        if component.Id and component.GetValue then
+            local value = component:GetValue()
+            if typeof(value) == "Color3" then
+                value = {R = value.R, G = value.G, B = value.B}
+            elseif typeof(value) == "EnumItem" then
+                value = value.Name
+            elseif type(value) == "table" then
+                value = shallowCopy(value)
+            end
+            values[component.Id] = value
+        end
+    end
+    return {
+        Version = 1,
+        SelectedTab = self._selectedTab and self._selectedTab._explicitId and self._selectedTab.Id or nil,
+        ThemePreset = self._themePreset,
+        Locale = self.Localization.Locale,
+        ToggleKey = self._toggleKey and self._toggleKey.Name or nil,
+        Resizable = self.Resizable,
+        Draggable = self._draggable,
+        Values = values,
+    }
+end
+
+function WindowMethods:SetState(state)
+    validConfig(state, "SetState")
+    assert(type(state.Values) == "table", "SetState.Values must be a table")
+    if state.Version ~= 1 then
+        warn("[AstraUI] State version is not supported: " .. tostring(state.Version))
+    end
+    if state.ThemePreset ~= nil then
+        assert(state.ThemePreset == "Dark" or state.ThemePreset == "Light" or state.ThemePreset == "Lilith",
+            "SetState.ThemePreset must be Dark, Light, or Lilith")
+        self:SetThemePreset(state.ThemePreset)
+    end
+    if state.Locale ~= nil then
+        assert(type(state.Locale) == "string", "SetState.Locale must be a string")
+        self:SetLocale(state.Locale)
+    end
+    if state.ToggleKey ~= nil then
+        assert(type(state.ToggleKey) == "string", "SetState.ToggleKey must be a KeyCode name")
+        local toggleKey = Enum.KeyCode[state.ToggleKey]
+        assert(isKeyCode(toggleKey), "SetState.ToggleKey is not a valid KeyCode")
+        self:SetToggleKey(toggleKey)
+    end
+    if state.Resizable ~= nil then
+        self:SetResizable(state.Resizable)
+    end
+    if state.Draggable ~= nil then
+        self:SetDraggable(state.Draggable)
+    end
+    for id in pairs(state.Values) do
+        if not self._ids[id] then
+            warn("[AstraUI] Ignoring unknown state Id: " .. tostring(id))
+        end
+    end
+    for _, component in ipairs(self._components) do
+        if component.Id and component.SetValue and state.Values[component.Id] ~= nil then
+            local value = state.Values[component.Id]
+            if component._kind == "Colorpicker" and type(value) == "table" then
+                value = Color3.new(value.R, value.G, value.B)
+            elseif component._kind == "Keybind" and type(value) == "string" then
+                value = Enum.KeyCode[value]
+            end
+            local ok, err = pcall(function()
+                component:SetValue(value)
+            end)
+            if not ok then
+                warn("[AstraUI] Invalid state for " .. component.Id .. ": " .. tostring(err))
+            end
+        end
+    end
+    if state.SelectedTab then
+        for _, tab in ipairs(self._tabs) do
+            if tab.Id == state.SelectedTab then
+                self:_selectTab(tab)
+                break
+            end
+        end
+    end
+end
+
+function WindowMethods:_onInputBegan(input, processed)
+    if self._capturingToggleKey and input.UserInputType == Enum.UserInputType.Keyboard then
+        if input.KeyCode == Enum.KeyCode.Escape then
+            self._capturingToggleKey = false
+        elseif input.KeyCode ~= Enum.KeyCode.Unknown then
+            self:SetToggleKey(input.KeyCode)
+            self._capturingToggleKey = false
+        end
+        if self._settingsRefreshKeybind then
+            self._settingsRefreshKeybind()
+        end
+        return
+    end
+    if processed or isTextFocused() or self._destroyed then
+        return
+    end
+    if self._toggleKey and input.KeyCode == self._toggleKey then
+        self:SetVisible(not self._visibilityTarget)
+        return
+    end
+    if input.KeyCode == Enum.KeyCode.Escape and self._overlay then
+        self:_closeOverlay()
+        return
+    end
+    for _, control in ipairs(self._keybinds) do
+        if control._capturing then
+            return
+        end
+    end
+    for _, control in ipairs(self._keybinds) do
+        if control._keyCode == input.KeyCode and control.Enabled then
+            self:_warnCallback(control.Name .. " keybind", control.Callback, input.KeyCode)
+        end
+    end
+end
+
+function WindowMethods:Destroy()
+    if self._destroyed then
+        return
+    end
+    self._destroyed = true
+    while #self._toasts > 0 do
+        self._toasts[1]:Dismiss()
+    end
+    if self._search then
+        self._search:Destroy()
+    end
+    self:_closeOverlay()
+    if self._visibilityTween then
+        self._visibilityTween:Cancel()
+        self._visibilityTween = nil
+    end
+    for _, component in ipairs(shallowCopy(self._components)) do
+        if component.Destroy then
+            pcall(function()
+                component:Destroy()
+            end)
+        end
+    end
+    for _, connection in ipairs(self._connections) do
+        connection:Disconnect()
+    end
+    if self._restoreEditableImage then
+        self._restoreEditableImage:Destroy()
+        self._restoreEditableImage = nil
+    end
+    if self._lilithEditableImage then
+        self._lilithEditableImage:Destroy()
+        self._lilithEditableImage = nil
+    end
+    if self._screenGui then
+        self._screenGui:Destroy()
+    end
+end
+
+function WindowMethods:Tab(config)
+    validConfig(config, "Tab")
+    assert(config.Name ~= nil, "Tab.Name is required")
+    assert(config.Icon == nil or (type(config.Icon) == "string" and config.Icon ~= ""), "Tab.Icon must be a non-empty string")
+    assert(config.Category == nil or (type(config.Category) == "string" and config.Category ~= ""), "Tab.Category must be a non-empty string")
+    local category
+    if config.Category then
+        category = self._tabCategories[config.Category]
+        if not category then
+            self._tabNavOrder = self._tabNavOrder + 1
+            local header = make("TextButton", {
+                AutoButtonColor = false,
+                BackgroundColor3 = self.Theme.Surface,
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                LayoutOrder = self._tabNavOrder,
+                Size = UDim2.new(1, -16, 0, 30),
+                Text = "",
+                ZIndex = 5,
+            }, self._tabList)
+            local label = self:_text(header, config.Category, {
+                Position = UDim2.new(0, 30, 0, 0),
+                Size = UDim2.new(1, -38, 1, 0),
+                Font = Enum.Font.GothamBold,
+                TextColor3 = self.Theme.TextMuted,
+                TextSize = 11,
+                ZIndex = 6,
+            })
+            local function updateCategoryIcon()
+                if category and category.Icon and category.Icon.Parent then
+                    category.Icon:Destroy()
+                end
+                category.Icon = self:_icon(header, category.Collapsed and "chevron-right" or "chevron-down", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new(0, 14, 0.5, 0),
+                    Size = UDim2.fromOffset(14, 14),
+                    TextColor3 = self.Theme.TextMuted,
+                    ZIndex = 6,
+                }, category.Collapsed and ">" or "v")
+            end
+            category = {
+                Name = config.Category,
+                Collapsed = false,
+                Header = header,
+                Label = label,
+                Icon = nil,
+                Tabs = {},
+            }
+            updateCategoryIcon()
+            self._tabCategories[config.Category] = category
+            self:_connect(header.Activated, function()
+                category.Collapsed = not category.Collapsed
+                updateCategoryIcon()
+                self:_setResponsiveLayout()
+            end)
+        end
+    end
+    local nameValue = config.Name
+    local name = self:_resolveText(nameValue)
+    local tabId = config.Id or ("tab-" .. tostring(#self._tabs + 1))
+    if config.Id ~= nil then
+        assert(type(config.Id) == "string" and config.Id ~= "", "Tab.Id must be a non-empty string")
+    end
+    for _, existing in ipairs(self._tabs) do
+        assert(existing.Id ~= tabId, "Duplicate tab Id: " .. tostring(tabId))
+    end
+    local tab = setmetatable({
+        _window = self,
+        _nameValue = nameValue,
+        Name = name,
+        Id = tabId,
+        _explicitId = config.Id ~= nil,
+        Icon = config.Icon,
+        Category = config.Category,
+        _category = category,
+        _sections = {},
+        _cardLayouts = {},
+    }, TabMethods)
+    table.insert(self._tabs, tab)
+    if category then
+        table.insert(category.Tabs, tab)
+    end
+    self._tabNavOrder = self._tabNavOrder + 1
+
+    local tabButton = make("TextButton", {
+        AutoButtonColor = false,
+        BackgroundColor3 = self.Theme.Surface,
+        BorderSizePixel = 0,
+        LayoutOrder = self._tabNavOrder,
+        Size = UDim2.new(1, -16, 0, 46),
+        Text = "",
+        ZIndex = 5,
+    }, self._tabList)
+    tab._button = tabButton
+    addCorner(tabButton, 9, self)
+    tab._stroke = addStroke(tabButton, self.Theme.Border, 1, self)
+    local nameLabel = self:_text(tabButton, nameValue, {
+        Position = UDim2.new(0, config.Icon and 40 or 16, 0, 0),
+        Size = UDim2.new(1, config.Icon and -46 or -22, 1, 0),
+        TextColor3 = self.Theme.TextSecondary,
+        TextSize = 14,
+        ZIndex = 6,
+    })
+    tab._nameLabel = nameLabel
+    if config.Icon then
+        local iconLabel = self:_icon(tabButton, config.Icon, {
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 12, 0.5, 0),
+            Size = UDim2.fromOffset(20, 20),
+            TextColor3 = self.Theme.TextSecondary,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            ZIndex = 6,
+        })
+        tab._iconLabel = iconLabel
+    end
+    self:_connect(tabButton.Activated, function()
+        self:_selectTab(tab)
+    end)
+
+    local page = make("ScrollingFrame", {
+        Active = true,
+        AutomaticCanvasSize = Enum.AutomaticSize.None,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        ScrollBarImageColor3 = self.Theme.AccentSecondary,
+        ScrollBarThickness = 4,
+        Size = UDim2.fromScale(1, 1),
+        Visible = false,
+        ZIndex = 2,
+    }, self._pageHost)
+    tab._page = page
+    make("UIPadding", {
+        PaddingBottom = UDim.new(0, 16),
+        PaddingLeft = UDim.new(0, 14),
+        PaddingRight = UDim.new(0, 18),
+        PaddingTop = UDim.new(0, 14),
+    }, page)
+    local pageLayout = make("UIListLayout", {
+        Padding = UDim.new(0, 10),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, page)
+    tab._pageLayout = pageLayout
+    self:_connect(pageLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+        self:_updatePageCanvas(tab)
+    end)
+    self:_connect(tabButton.MouseButton1Click, function()
+        if self._narrow then
+            self._drawer.Visible = false
+        end
+    end)
+    if not self._selectedTab then
+        self:_selectTab(tab)
+    end
+    self:_setResponsiveLayout()
+    return tab
+end
+
+local function createSection(window, parent, config, ownerTab)
+    validConfig(config, "Section")
+    assert(config.Name ~= nil, "Section.Name is required")
+    assert(config.Icon == nil or (type(config.Icon) == "string" and config.Icon ~= ""), "Section.Icon must be a non-empty string")
+    local section = setmetatable({
+        _window = window,
+        _parent = parent,
+        _connections = {},
+        _components = {},
+        _controlsFrame = nil,
+        _tab = ownerTab,
+    }, SectionMethods)
+    local card = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = window.Theme.StateSurface,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 3,
+    }, parent)
+    section._frame = card
+    addCorner(card, 6, window, true)
+    addStroke(card, window.Theme.Border, 0, window)
+    window:_trackTheme(card, "StateSurface", "BackgroundColor3")
+    window:_trackLilithSurface(card, 0.22)
+    make("UIPadding", {
+        PaddingBottom = UDim.new(0, 11),
+        PaddingLeft = UDim.new(0, 12),
+        PaddingRight = UDim.new(0, 12),
+        PaddingTop = UDim.new(0, 11),
+    }, card)
+    local titleRow = make("Frame", {
+        LayoutOrder = 1,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 24),
+        ZIndex = 4,
+    }, card)
+    local title = window:_text(titleRow, config.Name, {
+        Position = UDim2.new(0, config.Icon and 24 or 0, 0, 0),
+        Size = UDim2.new(1, config.Icon and -24 or 0, 1, 0),
+        Font = Enum.Font.GothamBold,
+        TextSize = 15,
+        ZIndex = 4,
+    })
+    if config.Icon then
+        window:_icon(titleRow, config.Icon, {
+            Position = UDim2.new(0, 0, 0.5, -9),
+            Size = UDim2.fromOffset(18, 18),
+            TextColor3 = window.Theme.AccentSecondary,
+            TextSize = 16,
+            ZIndex = 5,
+        })
+    end
+    section.Name = window:_resolveText(config.Name)
+    section._title = title
+    section._list = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        LayoutOrder = 2,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 4,
+    }, card)
+    section._layout = make("UIListLayout", {
+        Padding = UDim.new(0, 9),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, section._list)
+    make("UIListLayout", {
+        Padding = UDim.new(0, 8),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, card)
+    window:_connect(section._layout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+        if ownerTab then
+            window:_updatePageCanvas(ownerTab)
+        end
+    end)
+    table.insert(section._connections, window:_connect(title:GetPropertyChangedSignal("Text"), function()
+        section.Name = title.Text
+    end))
+    return section
+end
+
+function TabMethods:Section(config)
+    validConfig(config, "Section")
+    if config.Side ~= nil then
+        assert(config.Side == "Left" or config.Side == "Right", "Section.Side must be Left or Right")
+        if not self._sideColumns then
+            local window = self._window
+            local frame = make("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                ZIndex = 3,
+            }, self._page)
+            local left = make("Frame", {
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 0, 0, 0),
+                Size = UDim2.new(0.5, -7, 0, 0),
+                ZIndex = 3,
+            }, frame)
+            local right = make("Frame", {
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0.5, 7, 0, 0),
+                Size = UDim2.new(0.5, -7, 0, 0),
+                ZIndex = 3,
+            }, frame)
+            local leftLayout = make("UIListLayout", {
+                Padding = UDim.new(0, 10),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+            }, left)
+            local rightLayout = make("UIListLayout", {
+                Padding = UDim.new(0, 10),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+            }, right)
+            local function relayout()
+                if not frame.Parent then
+                    return
+                end
+                local stacked = window._narrow or frame.AbsoluteSize.X < 650
+                if stacked then
+                    left.Position = UDim2.new(0, 0, 0, 0)
+                    left.Size = UDim2.new(1, 0, 0, leftLayout.AbsoluteContentSize.Y)
+                    right.Position = UDim2.new(0, 0, 0, leftLayout.AbsoluteContentSize.Y + 10)
+                    right.Size = UDim2.new(1, 0, 0, rightLayout.AbsoluteContentSize.Y)
+                    frame.Size = UDim2.new(1, 0, 0, leftLayout.AbsoluteContentSize.Y + rightLayout.AbsoluteContentSize.Y + 10)
+                else
+                    left.Position = UDim2.new(0, 0, 0, 0)
+                    left.Size = UDim2.new(0.5, -7, 0, leftLayout.AbsoluteContentSize.Y)
+                    right.Position = UDim2.new(0.5, 7, 0, 0)
+                    right.Size = UDim2.new(0.5, -7, 0, rightLayout.AbsoluteContentSize.Y)
+                    frame.Size = UDim2.new(1, 0, 0, math.max(leftLayout.AbsoluteContentSize.Y, rightLayout.AbsoluteContentSize.Y))
+                end
+                window:_updatePageCanvas(self)
+            end
+            window:_connect(frame:GetPropertyChangedSignal("AbsoluteSize"), relayout)
+            window:_connect(leftLayout:GetPropertyChangedSignal("AbsoluteContentSize"), relayout)
+            window:_connect(rightLayout:GetPropertyChangedSignal("AbsoluteContentSize"), relayout)
+            self._sideColumns = {Frame = frame, Left = left, Right = right, Relayout = relayout}
+        end
+        local sideParent = self._sideColumns[config.Side]
+        local section = createSection(self._window, sideParent, config, self)
+        self._sideColumns.Relayout()
+        table.insert(self._sections, section)
+        return section
+    end
+    local section = createSection(self._window, self._page, config, self)
+    table.insert(self._sections, section)
+    return section
+end
+
+function SectionMethods:_register(component)
+    component._window = self._window
+    component._section = component._section or self
+    component._connections = component._connections or {}
+    table.insert(self._components, component)
+    self._window:_registerComponent(component)
+    return component
+end
+
+function SectionMethods:_row(config, kind)
+    config = config or {}
+    local window = self._window
+    local row = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = window.Theme.StateSurface,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 5,
+    }, self._list)
+    window:_trackTheme(row, "StateSurface", "BackgroundColor3")
+    window:_trackLilithSurface(row, 0.24)
+    addCorner(row, 6, window, true)
+    addStroke(row, window.Theme.Border, 0, window)
+    make("UIPadding", {
+        PaddingBottom = UDim.new(0, 9),
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+        PaddingTop = UDim.new(0, 9),
+    }, row)
+    local rowLayout = make("UIListLayout", {
+        Padding = UDim.new(0, 3),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, row)
+    local titleValue = config.Name or config.Title or kind
+    local label = window:_text(row, titleValue, {
+        LayoutOrder = 1,
+        Size = UDim2.new(1, 0, 0, 20),
+        Font = Enum.Font.GothamMedium,
+        TextSize = 13,
+        ZIndex = 6,
+    })
+    local description
+    if config.Description then
+        description = window:_text(row, config.Description, {
+            LayoutOrder = 2,
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            TextColor3 = window.Theme.TextMuted,
+            TextSize = 12,
+            TextWrapped = true,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            ZIndex = 6,
+        })
+    end
+    local body = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        LayoutOrder = 3,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 6,
+    }, row)
+    local component = {
+        Id = config.Id,
+        Name = window:_resolveText(titleValue),
+        Description = window:_resolveText(config.Description or ""),
+        _kind = kind,
+        _row = row,
+        _rowLayout = rowLayout,
+        _label = label,
+        _description = description,
+        _body = body,
+        _config = config,
+        Enabled = config.Enabled ~= false,
+        Callback = config.Callback,
+        _window = window,
+        _section = self,
+        _connections = {},
+        _value = config.Default,
+    }
+    table.insert(self._window._localized, {Object = label, Value = titleValue, Property = "Text"})
+    return self:_register(setmetatable(component, ControlMethods))
+end
+
+function ControlMethods:Destroy()
+    if self._destroyed then
+        return
+    end
+    self._destroyed = true
+    for _, connection in ipairs(self._connections or {}) do
+        if connection.Connected then
+            connection:Disconnect()
+        end
+    end
+    if self._cleanup then
+        local ok, err = pcall(self._cleanup)
+        if not ok then
+            warn("[AstraUI] Component cleanup failed: " .. tostring(err))
+        end
+    end
+    if self._row and self._row.Parent then
+        self._row:Destroy()
+    elseif self._instance and self._instance.Parent then
+        self._instance:Destroy()
+    end
+end
+
+function ControlMethods:SetEnabled(enabled)
+    assert(type(enabled) == "boolean", "SetEnabled expects a boolean")
+    self.Enabled = enabled
+    if self._button then
+        self._button.Active = enabled
+        self._button.AutoButtonColor = false
+        self._button.TextTransparency = enabled and 0 or 0.45
+    end
+    if self._switch then
+        self._switch.Active = enabled
+    end
+    if self._hit then
+        self._hit.Active = enabled
+    end
+    if self._input then
+        self._input.TextEditable = enabled
+    end
+end
+
+function ControlMethods:SetLoading(loading)
+    assert(self._kind == "Button", "SetLoading is only available on Button")
+    assert(type(loading) == "boolean", "SetLoading expects a boolean")
+    self._loading = loading
+    self:SetEnabled(not loading and self._config.Enabled ~= false)
+    if self._button then
+        self._button.Text = loading and "Loading…" or self.Name
+    end
+end
+
+function ControlMethods:SetError(message)
+    assert(self._kind == "Input", "SetError is only available on Input")
+    self._errorLabel.Text = safeString(message)
+    self._errorLabel.Visible = message ~= nil and message ~= ""
+    local role = self._errorLabel.Visible and "Danger" or "Border"
+    self._window:_trackTheme(self._inputStroke, role, "Color")
+    self._inputStroke.Color = self._window.Theme[role]
+end
+
+function ControlMethods:GetValue()
+    if type(self._value) == "table" then
+        return shallowCopy(self._value)
+    end
+    return self._value
+end
+
+function ControlMethods:_changed(value, fromUser)
+    self._value = type(value) == "table" and shallowCopy(value) or value
+    if fromUser and self.Callback then
+        local callbackValue = type(value) == "table" and shallowCopy(value) or value
+        self._window:_warnCallback(self.Name, self.Callback, callbackValue)
+    end
+end
+
+function ControlMethods:SetValue(value)
+    local kind = self._kind
+    if kind == "Toggle" then
+        assert(type(value) == "boolean", "Toggle value must be boolean")
+        self._value = value
+        local backgroundRole = value and "AccentSecondary" or "ControlTrack"
+        self._window:_trackTheme(self._switch, backgroundRole, "BackgroundColor3")
+        TweenService:Create(self._switch, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = self._window.Theme[backgroundRole],
+        }):Play()
+        TweenService:Create(self._switchKnob, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = value and UDim2.new(1, -29, 0, 3) or UDim2.new(0, 3, 0, 3),
+        }):Play()
+    elseif kind == "Slider" then
+        assert(type(value) == "number", "Slider value must be a number")
+        value = clamp(value, self._min, self._max)
+        if self._step then
+            value = self._min + math.floor((value - self._min) / self._step + 0.5) * self._step
+            value = clamp(value, self._min, self._max)
+        end
+        self._value = value
+        self._valueLabel.Text = tostring(value)
+        local fraction = (value - self._min) / (self._max - self._min)
+        self._fill.Size = UDim2.new(fraction, 0, 1, 0)
+        self._sliderKnob.Position = UDim2.new(fraction, -7, 0.5, -7)
+    elseif kind == "Dropdown" then
+        local found = false
+        for _, option in ipairs(self._options) do
+            if option == value then
+                found = true
+                break
+            end
+        end
+        assert(found, "Dropdown value must exist in Options")
+        self._value = value
+        self._button.Text = tostring(value)
+    elseif kind == "PlayerDropdown" then
+        assert(value == nil or type(value) == "table", "PlayerDropdown value must be an array of Players or nil")
+        for _, connection in ipairs(self._playerBadgeConnections or {}) do
+            if connection.Connected then
+                connection:Disconnect()
+            end
+        end
+        if self._playerBadgeConnections then
+            local oldConnections = {}
+            for _, connection in ipairs(self._playerBadgeConnections) do
+                oldConnections[connection] = true
+            end
+            for index = #self._connections, 1, -1 do
+                if oldConnections[self._connections[index]] then
+                    table.remove(self._connections, index)
+                end
+            end
+        end
+        self._playerBadgeConnections = {}
+        local currentPlayers = {}
+        for _, player in ipairs(Players:GetPlayers()) do
+            currentPlayers[player] = true
+        end
+        local selected = {}
+        local selectedLookup = {}
+        for _, player in ipairs(value or {}) do
+            assert(typeof(player) == "Instance" and player:IsA("Player") and currentPlayers[player],
+                "PlayerDropdown values must contain current Players")
+            assert(not (self._excludeLocalPlayer and player == LocalPlayer),
+                "PlayerDropdown cannot select the local player when ExcludeLocalPlayer is enabled")
+            if not selectedLookup[player] then
+                selectedLookup[player] = true
+                table.insert(selected, player)
+            end
+        end
+        self._value = selected
+        self._button.Text = self._window:_resolveText(self._placeholder)
+        for _, child in ipairs(self._selectedList:GetChildren()) do
+            if child:IsA("GuiObject") and not child:IsA("UIListLayout") then
+                child:Destroy()
+            end
+        end
+        for index, player in ipairs(selected) do
+            local badge = make("Frame", {
+                BackgroundColor3 = self._window.Theme.ControlInset,
+                BorderSizePixel = 0,
+                LayoutOrder = index,
+                Size = UDim2.new(0, 0, 0, 40),
+                ZIndex = self._button.ZIndex + 1,
+            }, self._selectedList)
+            addCorner(badge, 6, self._window, true)
+            self._window:_trackTheme(badge, "ControlInset", "BackgroundColor3")
+            addStroke(badge, self._window.Theme.ControlBorder, 0.5, self._window, "ControlBorder")
+            local avatar = make("ImageLabel", {
+                AnchorPoint = Vector2.new(0, 0.5),
+                BackgroundColor3 = self._window.Theme.ControlTrack,
+                BorderSizePixel = 0,
+                Image = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=48&h=48", player.UserId),
+                Position = UDim2.new(0, 4, 0.5, 0),
+                Size = UDim2.fromOffset(32, 32),
+                ZIndex = badge.ZIndex + 1,
+            }, badge)
+            addCorner(avatar, 16, self._window, true)
+            self._window:_text(badge, player.DisplayName, {
+                Position = UDim2.new(0, 42, 0, 3),
+                Size = UDim2.new(1, -82, 0, 18),
+                Font = Enum.Font.GothamMedium,
+                TextColor3 = self._window.Theme.TextPrimary,
+                TextSize = 12,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextWrapped = false,
+                ZIndex = badge.ZIndex + 1,
+            })
+            self._window:_text(badge, "@" .. player.Name, {
+                Position = UDim2.new(0, 42, 0, 20),
+                Size = UDim2.new(1, -82, 0, 16),
+                TextColor3 = self._window.Theme.TextMuted,
+                TextSize = 11,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextWrapped = false,
+                ZIndex = badge.ZIndex + 1,
+            })
+            local remove = make("TextButton", {
+                AnchorPoint = Vector2.new(1, 0.5),
+                AutoButtonColor = false,
+                BackgroundColor3 = self._window.Theme.ControlHover,
+                BorderSizePixel = 0,
+                Position = UDim2.new(1, -4, 0.5, 0),
+                Size = UDim2.fromOffset(30, 30),
+                Text = "×",
+                TextColor3 = self._window.Theme.TextSecondary,
+                TextSize = 18,
+                ZIndex = badge.ZIndex + 2,
+            }, badge)
+            remove:SetAttribute("AstraLabel", "Remove " .. player.DisplayName)
+            addCorner(remove, 5, self._window, true)
+            self._window:_trackTheme(remove, "ControlHover", "BackgroundColor3")
+            self._window:_trackTextColor(remove, self._window.Theme.TextSecondary)
+            local connection = self._window:_connect(remove.Activated, function()
+                if self._destroyed then
+                    return
+                end
+                local remaining = {}
+                for _, selectedPlayer in ipairs(self._value) do
+                    if selectedPlayer ~= player then
+                        table.insert(remaining, selectedPlayer)
+                    end
+                end
+                self:SetValue(remaining)
+                self:_changed(remaining, true)
+            end, self)
+            table.insert(self._playerBadgeConnections, connection)
+        end
+        if self._layoutPlayerBadges then
+            self._layoutPlayerBadges()
+        end
+    elseif kind == "MultiDropdown" then
+        assert(type(value) == "table", "MultiDropdown value must be an array")
+        local selected = {}
+        local lookup = {}
+        for _, option in ipairs(self._options) do
+            lookup[option] = true
+        end
+        for _, item in ipairs(value) do
+            assert(lookup[item], "MultiDropdown value contains an unknown option")
+            table.insert(selected, item)
+        end
+        self._value = selected
+        self._button.Text = #selected == 0 and "Select…" or table.concat(selected, ", ")
+    elseif kind == "Input" then
+        assert(type(value) == "string", "Input value must be a string")
+        if self._config.MaxLength then
+            value = truncateText(value, self._config.MaxLength)
+        end
+        self._value = value
+        self._input.Text = value
+    elseif kind == "Colorpicker" then
+        assert(typeof(value) == "Color3", "Colorpicker value must be a Color3")
+        self._value = value
+        if self._colorMainSwatch and self._colorMainSwatch.Parent then
+            self._colorMainSwatch.BackgroundColor3 = value
+        end
+        if self._colorSwatch and self._colorSwatch.Parent then
+            self._colorSwatch.BackgroundColor3 = value
+        end
+        if self._hexInput and self._hexInput.Parent then
+            self._hexInput.Text = string.format("#%02X%02X%02X", math.floor(value.R * 255), math.floor(value.G * 255), math.floor(value.B * 255))
+        end
+    elseif kind == "Keybind" then
+        assert(isKeyCode(value), "Keybind value must be an Enum.KeyCode")
+        self._value = value
+        self._keyCode = value
+        self._button.Text = "Change key"
+        self._keyBadge.Text = value.Name
+    else
+        error("SetValue is not available for " .. tostring(kind))
+    end
+    return self
+end
+
+local function newControlButton(component, text, callback, height, style)
+    style = style or {}
+    local controlButton = component._window:_button(component._body, text, callback, {
+        Owner = component,
+        Height = height or 38,
+        Background = style.Background or component._window.Theme.ControlSurface,
+        HoverBackground = style.HoverBackground,
+        HoverRole = style.HoverRole or "ControlHover",
+        PressedBackground = style.PressedBackground,
+        TextColor = style.TextColor or (style.Role == "AccentSecondary"
+            and component._window.Theme.AccentForeground or component._window.Theme.TextPrimary),
+        Role = style.Role or "ControlSurface",
+        Stroke = style.Stroke,
+        StrokeRole = style.StrokeRole,
+        Radius = 6,
+        PreserveRadius = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextSize = 13,
+        TextWrapped = style.TextWrapped ~= false,
+        TextTruncate = style.TextTruncate or Enum.TextTruncate.None,
+        PaddingLeft = style.PaddingLeft or 14,
+        PaddingRight = style.PaddingRight or 42,
+        StrokeTransparency = style.StrokeTransparency or 0.45,
+        HoverStrokeTransparency = style.HoverStrokeTransparency or 0.18,
+    })
+    component._button = controlButton
+    return controlButton
+end
+
+function SectionMethods:Button(config)
+    validConfig(config, "Button")
+    assert(type(config.Callback) == "function", "Button.Callback must be a function")
+    assert(config.Icon == nil or (type(config.Icon) == "string" and config.Icon ~= ""), "Button.Icon must be a non-empty string")
+    local component = self:_row(config, "Button")
+    component._label.Visible = false
+    if component._description then
+        component._rowLayout.Padding = UDim.new(0, 10)
+    end
+    local actionButton = newControlButton(component, config.Name or config.Title, function()
+        if component.Enabled and not component._loading then
+            component._window:_warnCallback(component.Name, config.Callback)
+        end
+    end, nil, {
+        Background = self._window.Theme.AccentSecondary,
+        HoverRole = "AccentSecondary",
+        HoverStrokeTransparency = 0.1,
+        Role = "AccentSecondary",
+        Stroke = self._window.Theme.AccentSecondary,
+        StrokeRole = "AccentSecondary",
+        StrokeTransparency = 0.25,
+        TextColor = self._window.Theme.AccentForeground,
+        TextXAlignment = config.Icon and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center,
+        TextWrapped = false,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        PaddingLeft = config.Icon and 40 or 14,
+        PaddingRight = 14,
+    })
+    component._button = actionButton
+    if config.Icon then
+        self._window:_icon(component._body, config.Icon, {
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 12, 0.5, 0),
+            Size = UDim2.fromOffset(18, 38),
+            TextColor3 = self._window.Theme.AccentForeground,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            ZIndex = actionButton.ZIndex + 2,
+        })
+    end
+    return component
+end
+
+function SectionMethods:Toggle(config)
+    validConfig(config, "Toggle")
+    assert(config.Default == nil or type(config.Default) == "boolean", "Toggle.Default must be a boolean")
+    assert(config.Callback == nil or type(config.Callback) == "function", "Toggle.Callback must be a function")
+    local component = self:_row(config, "Toggle")
+    local window = self._window
+    local switch = make("TextButton", {
+        AnchorPoint = Vector2.new(1, 0),
+        AutoButtonColor = false,
+        BackgroundColor3 = window.Theme.ControlTrack,
+        BorderSizePixel = 0,
+        Position = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.new(0, 56, 0, 32),
+        Selectable = true,
+        Text = "",
+        ZIndex = 8,
+    }, component._body)
+    window:_trackTheme(switch, "ControlTrack", "BackgroundColor3")
+    component._switch = switch
+    addCorner(switch, 17)
+    component._switchStroke = addStroke(switch, window.Theme.ControlBorder, 0.35, window, "ControlBorder")
+    component._switchKnob = make("Frame", {
+        BackgroundColor3 = window.Theme.ControlKnob,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 3, 0, 3),
+        Size = UDim2.new(0, 26, 0, 26),
+        ZIndex = 10,
+    }, switch)
+    addCorner(component._switchKnob, 13)
+    window:_trackTheme(component._switchKnob, "ControlKnob", "BackgroundColor3")
+    addStroke(component._switchKnob, window.Theme.ControlBorder, 0.2, window, "ControlBorder")
+    component._config.Default = config.Default == true
+    component:SetValue(config.Default == true)
+    window:_connect(switch.Activated, function()
+        if component.Enabled then
+            component:SetValue(not component._value)
+            component:_changed(component._value, true)
+        end
+    end, component)
+    return component
+end
+
+function SectionMethods:Slider(config)
+    validConfig(config, "Slider")
+    local minimum, maximum = config.Min, config.Max
+    assert(type(minimum) == "number" and type(maximum) == "number" and maximum > minimum, "Slider requires numeric Min < Max")
+    assert(config.Step == nil or (type(config.Step) == "number" and config.Step > 0), "Slider.Step must be a positive number")
+    assert(config.Callback == nil or type(config.Callback) == "function", "Slider.Callback must be a function")
+    local component = self:_row(config, "Slider")
+    local window = self._window
+    component._min = minimum
+    component._max = maximum
+    component._step = config.Step
+    component._track = make("Frame", {
+        BackgroundColor3 = window.Theme.ControlTrack,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 0, 9),
+        Size = UDim2.new(1, 0, 0, 12),
+        ZIndex = 8,
+    }, component._body)
+    window:_trackTheme(component._track, "ControlTrack", "BackgroundColor3")
+    addCorner(component._track, 6)
+    component._trackStroke = addStroke(component._track, window.Theme.ControlBorder, 0.6, window, "ControlBorder")
+    component._fill = make("Frame", {
+        BackgroundColor3 = window.Theme.AccentSecondary,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 0, 1, 0),
+        ZIndex = 9,
+    }, component._track)
+    window:_trackTheme(component._fill, "AccentSecondary", "BackgroundColor3")
+    addCorner(component._fill, 5)
+    component._sliderKnob = make("Frame", {
+        BackgroundColor3 = window.Theme.ControlKnob,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, -7, 0.5, -7),
+        Size = UDim2.new(0, 14, 0, 14),
+        ZIndex = 11,
+    }, component._track)
+    addCorner(component._sliderKnob, 7)
+    addStroke(component._sliderKnob, window.Theme.ControlBorder, 0.1, window, "ControlBorder")
+    window:_trackTheme(component._sliderKnob, "ControlKnob", "BackgroundColor3")
+    local hit = make("TextButton", {
+        AutoButtonColor = false,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, -14),
+        Size = UDim2.new(1, 0, 0, 44),
+        Selectable = true,
+        Text = "",
+        ZIndex = 10,
+    }, component._track)
+    component._hit = hit
+    component._valueLabel = window:_text(component._body, "", {
+        Position = UDim2.new(0, 0, 0, 27),
+        Size = UDim2.new(1, 0, 0, 20),
+        TextColor3 = window.Theme.TextSecondary,
+        TextSize = 12,
+        ZIndex = 8,
+    })
+    local function update(input)
+        local x = clamp((input.Position.X - component._track.AbsolutePosition.X) / math.max(1, component._track.AbsoluteSize.X), 0, 1)
+        local value = minimum + x * (maximum - minimum)
+        component:SetValue(value)
+        component:_changed(component._value, true)
+    end
+    window:_connect(hit.InputBegan, function(input)
+        if component.Enabled and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            component._dragging = true
+            update(input)
+        end
+    end, component)
+    window:_connect(hit.SelectionGained, function()
+        window:_trackTheme(component._trackStroke, "BorderActive", "Color")
+        component._trackStroke.Color = window.Theme.BorderActive
+    end, component)
+    window:_connect(hit.SelectionLost, function()
+        window:_trackTheme(component._trackStroke, "Border", "Color")
+        component._trackStroke.Color = window.Theme.Border
+    end, component)
+    window:_connect(UserInputService.InputBegan, function(input, processed)
+        if processed or not component.Enabled or GuiService.SelectedObject ~= hit then
+            return
+        end
+        local direction
+        if input.KeyCode == Enum.KeyCode.Left or input.KeyCode == Enum.KeyCode.DPadLeft or input.KeyCode == Enum.KeyCode.ButtonL1 then
+            direction = -1
+        elseif input.KeyCode == Enum.KeyCode.Right or input.KeyCode == Enum.KeyCode.DPadRight or input.KeyCode == Enum.KeyCode.ButtonR1 then
+            direction = 1
+        end
+        if direction then
+            local increment = component._step or (maximum - minimum) / 100
+            component:SetValue(component._value + increment * direction)
+            component:_changed(component._value, true)
+        end
+    end, component)
+    window:_connect(UserInputService.InputChanged, function(input)
+        if component._dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            update(input)
+        end
+    end, component)
+    window:_connect(UserInputService.InputEnded, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            component._dragging = false
+        end
+    end, component)
+    component:SetValue(config.Default or minimum)
+    return component
+end
+
+function WindowMethods:_showOptions(component, multiple)
+    self:_closeOverlay()
+    local overlay = self:_createOverlay()
+    self._openOverlayComponent = component
+    local panelSize = self._panel.AbsoluteSize
+    local trigger = component._button
+    local isPlayerDropdown = component._kind == "PlayerDropdown"
+    local optionHeight = isPlayerDropdown and 54 or 38
+    local popupWidth = math.min(math.max(trigger.AbsoluteSize.X, isPlayerDropdown and 280 or 240), panelSize.X - 24)
+    local playerColumns = 1
+    if isPlayerDropdown then
+        local availableWidth = popupWidth - 26
+        playerColumns = math.max(1, math.min(4, math.floor((availableWidth + 4) / 224)))
+    end
+    local optionRows = isPlayerDropdown
+        and math.ceil(math.max(1, #component._options) / playerColumns)
+        or math.max(1, #component._options)
+    local popupHeight = math.min(
+        276,
+        44 + optionRows * optionHeight,
+        math.max(90, panelSize.Y - 24)
+    )
+    local popupX = clamp(trigger.AbsolutePosition.X - self._panel.AbsolutePosition.X, 12, panelSize.X - popupWidth - 12)
+    local popupY = trigger.AbsolutePosition.Y - self._panel.AbsolutePosition.Y + trigger.AbsoluteSize.Y + 6
+    if popupY + popupHeight > panelSize.Y - 12 then
+        popupY = trigger.AbsolutePosition.Y - self._panel.AbsolutePosition.Y - popupHeight - 6
+    end
+    popupY = clamp(popupY, 12, panelSize.Y - popupHeight - 12)
+    local outside = make("TextButton", {
+        AutoButtonColor = false,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = "",
+        ZIndex = 100,
+    }, overlay)
+    self:_connect(outside.Activated, function()
+        self:_closeOverlay()
+    end, self._overlayOwner)
+    local popup = make("Frame", {
+        AnchorPoint = Vector2.new(0, 0),
+        BackgroundColor3 = self.Theme.SurfaceRaised,
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(popupX, popupY),
+        Size = UDim2.fromOffset(popupWidth, popupHeight),
+        ZIndex = 102,
+    }, overlay)
+    self:_trackTheme(popup, "SurfaceRaised", "BackgroundColor3")
+    addCorner(popup, 6, self, true)
+    addStroke(popup, self.Theme.Border, 0, self)
+    self:_text(popup, component.Name, {
+        Position = UDim2.new(0, 12, 0, 7),
+        Size = UDim2.new(1, -24, 0, 20),
+        Font = Enum.Font.GothamBold,
+        TextColor3 = self.Theme.TextSecondary,
+        TextSize = 12,
+        ZIndex = 103,
+    })
+    local list = make("ScrollingFrame", {
+        Active = true,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.new(0, 0, 0, #component._options * optionHeight + 8),
+        Position = UDim2.new(0, 8, 0, 32),
+        ScrollBarImageColor3 = self.Theme.AccentSecondary,
+        ScrollBarThickness = 2,
+        Size = UDim2.new(1, -16, 1, -38),
+        ZIndex = 103,
+    }, popup)
+    self:_trackTheme(list, "AccentSecondary", "ScrollBarImageColor3")
+    make("UIPadding", {
+        PaddingTop = UDim.new(0, 4),
+        PaddingBottom = UDim.new(0, 4),
+        PaddingLeft = UDim.new(0, 4),
+        PaddingRight = UDim.new(0, 4),
+    }, list)
+    if isPlayerDropdown and #component._options > 0 then
+        local gap = 4
+        local playerGrid = make("UIGridLayout", {
+            CellPadding = UDim2.fromOffset(gap, gap),
+            CellSize = UDim2.fromOffset(220, optionHeight - gap),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        }, list)
+        local function layoutPlayerOptions()
+            local availableWidth = list.AbsoluteSize.X - 10
+            if availableWidth <= 0 then
+                return
+            end
+            local columns = math.max(1, math.min(4, math.floor((availableWidth + gap) / (220 + gap))))
+            local cellWidth = (availableWidth - gap * (columns - 1)) / columns
+            playerGrid.CellSize = UDim2.new(0, cellWidth, 0, optionHeight - gap)
+            local rows = math.ceil(#component._options / columns)
+            list.CanvasSize = UDim2.new(0, 0, 0, rows * (optionHeight - gap) + math.max(0, rows - 1) * gap + 8)
+        end
+        self:_connect(list:GetPropertyChangedSignal("AbsoluteSize"), layoutPlayerOptions, self._overlayOwner)
+        task.defer(layoutPlayerOptions)
+    else
+        make("UIListLayout", {
+            Padding = UDim.new(0, 4),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        }, list)
+    end
+    if isPlayerDropdown and #component._options == 0 then
+        self:_text(list, component._emptyText, {
+            Position = UDim2.new(0, 8, 0, 4),
+            Size = UDim2.new(1, -16, 0, 42),
+            TextColor3 = self.Theme.TextMuted,
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            ZIndex = 104,
+        })
+    end
+    for index, option in ipairs(component._options) do
+        local optionValue = option
+        local selected = (multiple or isPlayerDropdown) and table.find(component._value, optionValue) ~= nil
+            or (not multiple and component._value == optionValue)
+        local optionFrame = make("Frame", {
+            BackgroundColor3 = isPlayerDropdown and self.Theme.ControlInset or self.Theme.ControlSurface,
+            BorderSizePixel = 0,
+            LayoutOrder = index,
+            Size = UDim2.new(1, -8, 0, optionHeight - 4),
+            ZIndex = 104,
+        }, list)
+        addCorner(optionFrame, 6, self, true)
+        self:_trackTheme(optionFrame, isPlayerDropdown and "ControlInset" or "ControlSurface", "BackgroundColor3")
+        local optionStroke = addStroke(optionFrame, self.Theme.AccentSecondary, 0, self, "AccentSecondary")
+        optionStroke.Thickness = 1
+        optionStroke.LineJoinMode = Enum.LineJoinMode.Round
+        optionStroke.Transparency = selected and 0 or 1
+        self:_button(optionFrame, "", function()
+            if isPlayerDropdown then
+                if optionValue.Parent == Players then
+                    local selectedPlayers = component:GetValue()
+                    local selectedIndex = table.find(selectedPlayers, optionValue)
+                    if selectedIndex then
+                        table.remove(selectedPlayers, selectedIndex)
+                    else
+                        table.insert(selectedPlayers, optionValue)
+                    end
+                    component:SetValue(selectedPlayers)
+                    component:_changed(selectedPlayers, true)
+                end
+                self:_showOptions(component, false)
+                return
+            end
+            if multiple then
+                local values = shallowCopy(component._value)
+                local existing
+                for i, current in ipairs(values) do
+                    if current == optionValue then
+                        existing = i
+                        break
+                    end
+                end
+                if existing then
+                    table.remove(values, existing)
+                else
+                    table.insert(values, optionValue)
+                end
+                component:SetValue(values)
+                component:_changed(values, true)
+                self:_closeOverlay()
+                self:_showOptions(component, true)
+            else
+                component:SetValue(optionValue)
+                component:_changed(optionValue, true)
+                self:_closeOverlay()
+            end
+        end, {
+            Background = self.Theme.ControlSurface,
+            BackgroundTransparency = 1,
+            Owner = self._overlayOwner,
+            Size = UDim2.fromScale(1, 1),
+            Height = optionHeight - 4,
+            HoverRole = "ControlHover",
+            HoverStrokeTransparency = 1,
+            PaddingLeft = isPlayerDropdown and 50 or 10,
+            PaddingRight = 10,
+            PreserveRadius = true,
+            Radius = 6,
+            Role = "ControlSurface",
+            Stroke = self.Theme.ControlSurface,
+            StrokeTransparency = 1,
+            TextColor = self.Theme.TextSecondary,
+            TextSize = 12,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextWrapped = false,
+            ZIndex = 105,
+        })
+        if isPlayerDropdown then
+            local avatar = make("ImageLabel", {
+                AnchorPoint = Vector2.new(0, 0.5),
+                BackgroundColor3 = self.Theme.ControlTrack,
+                BorderSizePixel = 0,
+                Image = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=48&h=48", optionValue.UserId),
+                Position = UDim2.new(0, 7, 0.5, 0),
+                Size = UDim2.fromOffset(38, 38),
+                ZIndex = 106,
+            }, optionFrame)
+            addCorner(avatar, 19, self, true)
+            local isLocalPlayer = optionValue == LocalPlayer
+            self:_text(optionFrame, optionValue.DisplayName, {
+                Active = false,
+                Position = UDim2.new(0, 52, 0, 6),
+                Size = UDim2.new(1, isLocalPlayer and -104 or -62, 0, 19),
+                Font = Enum.Font.GothamMedium,
+                TextColor3 = self.Theme.TextPrimary,
+                TextSize = 13,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextWrapped = false,
+                ZIndex = 106,
+            })
+            if isLocalPlayer then
+                self:_text(optionFrame, self:_resolveText("YOU"), {
+                    Active = false,
+                    Position = UDim2.new(1, -44, 0, 7),
+                    Size = UDim2.fromOffset(36, 16),
+                    Font = Enum.Font.GothamBold,
+                    TextColor3 = self.Theme.AccentSecondary,
+                    TextSize = 10,
+                    TextXAlignment = Enum.TextXAlignment.Right,
+                    TextWrapped = false,
+                    ZIndex = 106,
+                })
+            end
+            self:_text(optionFrame, "@" .. optionValue.Name, {
+                Active = false,
+                Position = UDim2.new(0, 52, 0, 26),
+                Size = UDim2.new(1, -62, 0, 16),
+                TextColor3 = self.Theme.TextMuted,
+                TextSize = 11,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextWrapped = false,
+                ZIndex = 106,
+            })
+        else
+            self:_text(optionFrame, tostring(optionValue), {
+                Active = false,
+                Position = UDim2.new(0, 10, 0, 0),
+                Size = UDim2.new(1, -20, 1, 0),
+                TextColor3 = self.Theme.TextSecondary,
+                TextSize = 12,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextWrapped = false,
+                ZIndex = 106,
+            })
+        end
+    end
+end
+
+function SectionMethods:Dropdown(config)
+    validConfig(config, "Dropdown")
+    assert(type(config.Options) == "table" and #config.Options > 0, "Dropdown.Options must be a non-empty array")
+    assert(config.Callback == nil or type(config.Callback) == "function", "Dropdown.Callback must be a function")
+    for _, option in ipairs(config.Options) do
+        assert(type(option) == "string", "Dropdown options must be strings")
+    end
+    local component = self:_row(config, "Dropdown")
+    component._options = shallowCopy(config.Options)
+    local initial = config.Default
+    if initial == nil then
+        initial = component._options[1]
+    end
+    newControlButton(component, tostring(initial), function()
+        if component.Enabled then
+            component._window:_showOptions(component, false)
+        end
+    end, nil, {
+        PaddingRight = 40,
+        TextWrapped = false,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+    })
+    component._dropdownIcon = self._window:_icon(component._body, "chevron-down", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.fromOffset(16, 16),
+        TextColor3 = self._window.Theme.TextMuted,
+        TextSize = 14,
+        ZIndex = component._button.ZIndex + 1,
+    }, "v")
+    component:SetValue(initial)
+    return component
+end
+
+function SectionMethods:PlayerDropdown(config)
+    validConfig(config, "PlayerDropdown")
+    assert(config.Id == nil, "PlayerDropdown selections are runtime-only and cannot have a persistent Id")
+    assert(config.Default == nil, "PlayerDropdown does not support a default selection")
+    assert(config.Callback == nil or type(config.Callback) == "function", "PlayerDropdown.Callback must be a function")
+    assert(config.ExcludeLocalPlayer == nil or type(config.ExcludeLocalPlayer) == "boolean",
+        "PlayerDropdown.ExcludeLocalPlayer must be a boolean")
+
+    local controlConfig = shallowCopy(config)
+    controlConfig.Id = nil
+    local component = self:_row(controlConfig, "PlayerDropdown")
+    component._excludeLocalPlayer = config.ExcludeLocalPlayer == true
+    component._placeholder = config.Placeholder or "Select a player..."
+    component._emptyText = self._window:_resolveText(config.EmptyText or "No players are currently available.")
+    component._options = {}
+    component._value = {}
+
+    local function refreshOptions(removedPlayer)
+        if component._destroyed or self._window._destroyed then
+            return
+        end
+        component._options = {}
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= removedPlayer and not (component._excludeLocalPlayer and player == LocalPlayer) then
+                table.insert(component._options, player)
+            end
+        end
+        table.sort(component._options, function(first, second)
+            local firstName = string.lower(first.DisplayName)
+            local secondName = string.lower(second.DisplayName)
+            return firstName == secondName and string.lower(first.Name) < string.lower(second.Name)
+                or firstName < secondName
+        end)
+
+        if #component._value > 0 then
+            local remaining = {}
+            local removedSelected = false
+            for _, selectedPlayer in ipairs(component._value) do
+                if selectedPlayer == removedPlayer or selectedPlayer.Parent ~= Players then
+                    removedSelected = true
+                else
+                    table.insert(remaining, selectedPlayer)
+                end
+            end
+            if removedSelected then
+                component:SetValue(remaining)
+                component:_changed(remaining, true)
+            end
+        end
+        if self._window._openOverlayComponent == component then
+            self._window:_showOptions(component, false)
+        end
+    end
+
+    refreshOptions()
+    newControlButton(component, self._window:_resolveText(component._placeholder), function()
+        if component.Enabled then
+            refreshOptions()
+            component._window:_showOptions(component, false)
+        end
+    end, nil, {
+        Background = self._window.Theme.ControlInset,
+        PaddingLeft = 12,
+        PaddingRight = 0,
+        Role = "ControlInset",
+        TextWrapped = false,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+    })
+    component._button.LayoutOrder = 1
+    component._selectedList = make("Frame", {
+        BackgroundTransparency = 1,
+        LayoutOrder = 2,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = component._button.ZIndex,
+    }, component._body)
+    component._playerGrid = make("UIGridLayout", {
+        CellPadding = UDim2.fromOffset(6, 6),
+        CellSize = UDim2.fromOffset(160, 40),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, component._selectedList)
+    component._layoutPlayerBadges = function()
+        if component._destroyed or not component._selectedList.Parent then
+            return
+        end
+        local width = component._selectedList.AbsoluteSize.X
+        if width <= 0 then
+            return
+        end
+        local gap = 6
+        local minCellWidth = 160
+        local columns = math.max(1, math.min(4, math.floor((width + gap) / (minCellWidth + gap))))
+        local cellWidth = (width - gap * (columns - 1)) / columns
+        component._playerGrid.CellSize = UDim2.new(0, cellWidth, 0, 40)
+        local rows = math.ceil(#component._value / columns)
+        local height = rows > 0 and rows * 40 + (rows - 1) * gap or 0
+        component._selectedList.Size = UDim2.new(1, 0, 0, height)
+    end
+    self._window:_connect(component._selectedList:GetPropertyChangedSignal("AbsoluteSize"), component._layoutPlayerBadges, component)
+    make("UIListLayout", {
+        Padding = UDim.new(0, 7),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, component._body)
+    component._dropdownIcon = self._window:_icon(component._button, "chevron-down", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -4, 0.5, 0),
+        Size = UDim2.fromOffset(18, 18),
+        TextColor3 = self._window.Theme.TextMuted,
+        TextSize = 14,
+        ZIndex = component._button.ZIndex + 1,
+    }, "v")
+    component._playerBadgeConnections = {}
+    component:SetValue({})
+    task.defer(component._layoutPlayerBadges)
+
+    self._window:_connect(Players.PlayerAdded, function()
+        task.defer(refreshOptions)
+    end, component)
+    self._window:_connect(Players.PlayerRemoving, function(player)
+        task.defer(refreshOptions, player)
+    end, component)
+    task.defer(refreshOptions)
+
+    return component
+end
+
+function SectionMethods:MultiDropdown(config)
+    validConfig(config, "MultiDropdown")
+    assert(type(config.Options) == "table" and #config.Options > 0, "MultiDropdown.Options must be a non-empty array")
+    assert(config.Callback == nil or type(config.Callback) == "function", "MultiDropdown.Callback must be a function")
+    for _, option in ipairs(config.Options) do
+        assert(type(option) == "string", "MultiDropdown options must be strings")
+    end
+    local component = self:_row(config, "MultiDropdown")
+    component._options = shallowCopy(config.Options)
+    local initial = config.Default or {}
+    newControlButton(component, "Select...", function()
+        if component.Enabled then
+            component._window:_showOptions(component, true)
+        end
+    end, nil, {
+        PaddingRight = 40,
+        TextWrapped = false,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+    })
+    component._dropdownIcon = self._window:_icon(component._body, "chevron-down", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.fromOffset(16, 16),
+        TextColor3 = self._window.Theme.TextMuted,
+        TextSize = 14,
+        ZIndex = component._button.ZIndex + 1,
+    }, "v")
+    component:SetValue(initial)
+    return component
+end
+
+function SectionMethods:Input(config)
+    validConfig(config, "Input")
+    assert(config.Callback == nil or type(config.Callback) == "function", "Input.Callback must be a function")
+    assert(config.Live == nil or type(config.Live) == "boolean", "Input.Live must be a boolean")
+    local component = self:_row(config, "Input")
+    local window = self._window
+    local input = make("TextBox", {
+        BackgroundColor3 = window.Theme.ControlSurface,
+        BorderSizePixel = 0,
+        ClearTextOnFocus = false,
+        Font = Enum.Font.Gotham,
+        PlaceholderColor3 = window.Theme.TextMuted,
+        PlaceholderText = window:_resolveText(config.Placeholder or ""),
+        Size = UDim2.new(1, 0, 0, 44),
+        Text = safeString(config.Default),
+        TextColor3 = window.Theme.TextPrimary,
+        TextSize = 14,
+        ZIndex = 8,
+    }, component._body)
+    window:_trackTheme(input, "ControlSurface", "BackgroundColor3")
+    component._input = input
+    if type(config.Placeholder) == "string" or (type(config.Placeholder) == "table" and config.Placeholder.Key) then
+        table.insert(window._localized, {Object = input, Value = config.Placeholder, Property = "PlaceholderText"})
+    end
+    addCorner(input, 9, window)
+    component._inputStroke = addStroke(input, window.Theme.ControlBorder, 0.35, window, "ControlBorder")
+    make("UIPadding", {
+        PaddingLeft = UDim.new(0, 12),
+        PaddingRight = UDim.new(0, 12),
+    }, input)
+    window:_connect(input.Focused, function()
+        window:_trackTheme(input, "ControlHover", "BackgroundColor3")
+        window:_trackTheme(component._inputStroke, "BorderActive", "Color")
+        TweenService:Create(component._inputStroke, TweenInfo.new(0.14), {
+            Color = window.Theme.BorderActive,
+            Transparency = 0.1,
+        }):Play()
+        TweenService:Create(input, TweenInfo.new(0.14), {
+            BackgroundColor3 = window.Theme.ControlHover,
+        }):Play()
+    end, component)
+    component._errorLabel = window:_text(component._body, "", {
+        Position = UDim2.new(0, 0, 0, 46),
+        Size = UDim2.new(1, 0, 0, 32),
+        TextColor3 = window.Theme.Danger,
+        TextSize = 12,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        Visible = false,
+        ZIndex = 8,
+    })
+    component._value = safeString(config.Default)
+    if config.MaxLength then
+        assert(type(config.MaxLength) == "number" and config.MaxLength >= 1, "Input.MaxLength must be positive")
+    end
+    if config.Numeric then
+        input.ClearTextOnFocus = false
+    end
+    local function commit()
+        local value = input.Text
+        if config.Numeric and value ~= "" and tonumber(value) == nil then
+            component:SetError("Enter a valid number")
+            return
+        end
+        component:SetError(nil)
+        component:_changed(value, true)
+    end
+    window:_connect(input.FocusLost, function()
+        if not config.Live then
+            commit()
+        end
+        local strokeRole = component._errorLabel.Visible and "Danger" or "ControlBorder"
+        window:_trackTheme(component._inputStroke, strokeRole, "Color")
+        component._inputStroke.Color = window.Theme[strokeRole]
+        component._inputStroke.Transparency = component._errorLabel.Visible and 0.1 or 0.35
+        window:_trackTheme(input, "ControlSurface", "BackgroundColor3")
+        TweenService:Create(input, TweenInfo.new(0.14), {
+            BackgroundColor3 = window.Theme.ControlSurface,
+        }):Play()
+    end, component)
+    if config.Live or config.MaxLength then
+        window:_connect(input:GetPropertyChangedSignal("Text"), function()
+            if config.MaxLength and textLength(input.Text) > config.MaxLength then
+                input.Text = truncateText(input.Text, config.MaxLength)
+            end
+            if config.Live then
+                component:_changed(input.Text, true)
+            end
+        end, component)
+    end
+    return component
+end
+
+function SectionMethods:Keybind(config)
+    validConfig(config, "Keybind")
+    assert(config.Callback == nil or type(config.Callback) == "function", "Keybind.Callback must be a function")
+    local default = config.Default or Enum.KeyCode.Unknown
+    assert(isKeyCode(default), "Keybind.Default must be an Enum.KeyCode")
+    local component = self:_row(config, "Keybind")
+    local window = self._window
+    component._keyCode = default
+    component.Callback = config.Callback
+    component._button = newControlButton(component, "Change key", function()
+        component._capturing = true
+        component._keyBadge.Text = "PRESS KEY"
+    end, 44, {
+        PaddingRight = 100,
+    })
+    local keyBadge = make("Frame", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = window.Theme.ControlSurface,
+        BorderSizePixel = 0,
+        Position = UDim2.new(1, -12, 0.5, 0),
+        Size = UDim2.new(0, 76, 0, 30),
+        ZIndex = 11,
+    }, component._body)
+    addCorner(keyBadge, 7, window)
+    window:_trackTheme(keyBadge, "ControlSurface", "BackgroundColor3")
+    addStroke(keyBadge, window.Theme.ControlBorder, 0.6, window, "ControlBorder")
+    component._keyBadge = window:_text(keyBadge, default.Name, {
+        Font = Enum.Font.GothamMedium,
+        TextColor3 = window.Theme.TextSecondary,
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 12,
+    })
+    self._window:_connect(UserInputService.InputBegan, function(input, processed)
+        if processed or isTextFocused() then
+            return
+        end
+        if component._capturing then
+            if input.KeyCode == Enum.KeyCode.Escape then
+                component._capturing = false
+                component._keyBadge.Text = component._keyCode.Name
+                return
+            end
+            if input.KeyCode ~= Enum.KeyCode.Unknown then
+                component._capturing = false
+                component:SetValue(input.KeyCode)
+                component:_changed(input.KeyCode, true)
+            end
+        end
+    end, component)
+    component:SetValue(default)
+    table.insert(self._window._keybinds, component)
+    return component
+end
+
+function SectionMethods:Colorpicker(config)
+    validConfig(config, "Colorpicker")
+    assert(config.Callback == nil or type(config.Callback) == "function", "Colorpicker.Callback must be a function")
+    local component = self:_row(config, "Colorpicker")
+    local window = self._window
+    local initial = config.Default or window.Theme.Accent
+    local colorButton
+    colorButton = newControlButton(component, "Choose color", function()
+        window:_closeOverlay()
+        local overlay = window:_createOverlay()
+        window._openOverlayComponent = component
+        local panelSize = window._panel.AbsoluteSize
+        local popupWidth = math.min(360, panelSize.X - 24)
+        local popupHeight = math.min(296, panelSize.Y - 24)
+        local popupX = clamp(
+            colorButton.AbsolutePosition.X - window._panel.AbsolutePosition.X,
+            12,
+            panelSize.X - popupWidth - 12
+        )
+        local popupY = colorButton.AbsolutePosition.Y - window._panel.AbsolutePosition.Y + colorButton.AbsoluteSize.Y + 6
+        if popupY + popupHeight > panelSize.Y - 12 then
+            popupY = colorButton.AbsolutePosition.Y - window._panel.AbsolutePosition.Y - popupHeight - 6
+        end
+        popupY = clamp(popupY, 12, panelSize.Y - popupHeight - 12)
+        local outside = make("TextButton", {
+            AutoButtonColor = false,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Text = "",
+            ZIndex = 100,
+        }, overlay)
+        window:_connect(outside.Activated, function()
+            window:_closeOverlay()
+        end, window._overlayOwner)
+        local popup = make("Frame", {
+            AnchorPoint = Vector2.new(0, 0),
+            BackgroundColor3 = window.Theme.SurfaceRaised,
+            BorderSizePixel = 0,
+            Position = UDim2.fromOffset(popupX, popupY),
+            Size = UDim2.fromOffset(popupWidth, popupHeight),
+            ZIndex = 102,
+        }, overlay)
+        window:_trackTheme(popup, "SurfaceRaised", "BackgroundColor3")
+        addCorner(popup, 12, window)
+        addStroke(popup, window.Theme.Border, 0.25, window)
+        window:_text(popup, "Color picker", {
+            Position = UDim2.new(0, 14, 0, 12),
+            Size = UDim2.new(1, -28, 0, 22),
+            Font = Enum.Font.GothamBold,
+            ZIndex = 103,
+        })
+        local color = component._value or initial
+        local hue, saturation, brightness = color:ToHSV()
+        local colorMap = make("Frame", {
+            BackgroundColor3 = Color3.fromHSV(hue, 1, 1),
+            BorderSizePixel = 0,
+            ClipsDescendants = true,
+            Position = UDim2.new(0, 14, 0, 42),
+            Size = UDim2.new(1, -28, 0, 142),
+            ZIndex = 104,
+        }, popup)
+        addCorner(colorMap, 7)
+        addStroke(colorMap, window.Theme.Border, 0.35, window)
+        local saturationLayer = make("Frame", {
+            BackgroundColor3 = Color3.new(1, 1, 1),
+            BorderSizePixel = 0,
+            Size = UDim2.fromScale(1, 1),
+            ZIndex = 105,
+        }, colorMap)
+        make("UIGradient", {
+            Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.new(1, 1, 1)),
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0),
+                NumberSequenceKeypoint.new(1, 1),
+            }),
+        }, saturationLayer)
+        local brightnessLayer = make("Frame", {
+            BackgroundColor3 = Color3.new(0, 0, 0),
+            BorderSizePixel = 0,
+            Size = UDim2.fromScale(1, 1),
+            ZIndex = 106,
+        }, colorMap)
+        make("UIGradient", {
+            Rotation = 90,
+            Color = ColorSequence.new(Color3.new(0, 0, 0), Color3.new(0, 0, 0)),
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 1),
+                NumberSequenceKeypoint.new(1, 0),
+            }),
+        }, brightnessLayer)
+        local mapPointer = make("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = Color3.new(1, 1, 1),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Position = UDim2.new(saturation, 0, 1 - brightness, 0),
+            Size = UDim2.fromOffset(14, 14),
+            ZIndex = 108,
+        }, colorMap)
+        addCorner(mapPointer, 7, nil, true)
+        addStroke(mapPointer, Color3.new(1, 1, 1), 0, nil)
+        local mapHit = make("TextButton", {
+            Active = true,
+            AutoButtonColor = false,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Text = "",
+            ZIndex = 109,
+        }, colorMap)
+        mapPointer.ZIndex = 110
+        local hueRail = make("Frame", {
+            BackgroundColor3 = Color3.new(1, 0, 0),
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 14, 0, 194),
+            Size = UDim2.new(1, -28, 0, 16),
+            ZIndex = 104,
+        }, popup)
+        addCorner(hueRail, 8, nil, true)
+        make("UIGradient", {
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 1, 1)),
+                ColorSequenceKeypoint.new(1 / 6, Color3.fromHSV(1 / 6, 1, 1)),
+                ColorSequenceKeypoint.new(2 / 6, Color3.fromHSV(2 / 6, 1, 1)),
+                ColorSequenceKeypoint.new(3 / 6, Color3.fromHSV(3 / 6, 1, 1)),
+                ColorSequenceKeypoint.new(4 / 6, Color3.fromHSV(4 / 6, 1, 1)),
+                ColorSequenceKeypoint.new(5 / 6, Color3.fromHSV(5 / 6, 1, 1)),
+                ColorSequenceKeypoint.new(1, Color3.fromHSV(1, 1, 1)),
+            }),
+        }, hueRail)
+        local huePointer = make("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = Color3.new(1, 1, 1),
+            BorderSizePixel = 0,
+            Position = UDim2.new(hue, 0, 0.5, 0),
+            Size = UDim2.new(0, 4, 1, 6),
+            ZIndex = 108,
+        }, hueRail)
+        addCorner(huePointer, 2, nil, true)
+        local hueHit = make("TextButton", {
+            Active = true,
+            AutoButtonColor = false,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Text = "",
+            ZIndex = 109,
+        }, hueRail)
+        huePointer.ZIndex = 110
+        component._colorSwatch = make("Frame", {
+            BackgroundColor3 = color,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 14, 0, 220),
+            Size = UDim2.fromOffset(34, 30),
+            ZIndex = 104,
+        }, popup)
+        addCorner(component._colorSwatch, 7)
+        local hex = make("TextBox", {
+            BackgroundColor3 = window.Theme.ControlSurface,
+            BorderSizePixel = 0,
+            ClearTextOnFocus = false,
+            Font = Enum.Font.Gotham,
+            Position = UDim2.new(0, 56, 0, 220),
+            Size = UDim2.new(1, -70, 0, 30),
+            Text = string.format("#%02X%02X%02X", math.floor(color.R * 255), math.floor(color.G * 255), math.floor(color.B * 255)),
+            TextColor3 = window.Theme.TextPrimary,
+            TextSize = 13,
+            ZIndex = 104,
+        }, popup)
+        window:_trackTheme(hex, "ControlSurface", "BackgroundColor3")
+        component._hexInput = hex
+        addCorner(hex, 8, window)
+        addStroke(hex, window.Theme.ControlBorder, 0.4, window, "ControlBorder")
+        make("UIPadding", {
+            PaddingLeft = UDim.new(0, 10),
+            PaddingRight = UDim.new(0, 10),
+        }, hex)
+        local apply = window:_button(popup, "Apply", function()
+            local text = string.gsub(hex.Text, "#", "")
+            if #text == 6 and string.match(text, "^%x%x%x%x%x%x$") then
+                local r = tonumber(string.sub(text, 1, 2), 16)
+                local g = tonumber(string.sub(text, 3, 4), 16)
+                local b = tonumber(string.sub(text, 5, 6), 16)
+                component:SetValue(Color3.fromRGB(r, g, b))
+                component:_changed(component._value, true)
+                window:_closeOverlay()
+            else
+                warn("[AstraUI] Colorpicker expects a 6-digit hex value")
+            end
+        end, {
+            Position = UDim2.new(0, 14, 1, -36),
+            Size = UDim2.new(1, -28, 0, 28),
+            Height = 28,
+            Background = window.Theme.AccentSecondary,
+            HoverRole = "AccentSecondary",
+            Role = "AccentSecondary",
+            Stroke = window.Theme.AccentSecondary,
+            StrokeRole = "AccentSecondary",
+            StrokeTransparency = 0.25,
+            HoverStrokeTransparency = 0.1,
+            TextColor = window.Theme.AccentForeground,
+            ZIndex = 104,
+            Owner = window._overlayOwner,
+        })
+        apply.Position = UDim2.new(0, 14, 1, -36)
+        local function updateColorPicker(input, mode)
+            if mode == "Hue" then
+                hue = clamp((input.Position.X - hueRail.AbsolutePosition.X) / math.max(1, hueRail.AbsoluteSize.X), 0, 1)
+                huePointer.Position = UDim2.new(hue, 0, 0.5, 0)
+                colorMap.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+            else
+                saturation = clamp((input.Position.X - colorMap.AbsolutePosition.X) / math.max(1, colorMap.AbsoluteSize.X), 0, 1)
+                brightness = 1 - clamp((input.Position.Y - colorMap.AbsolutePosition.Y) / math.max(1, colorMap.AbsoluteSize.Y), 0, 1)
+                mapPointer.Position = UDim2.new(saturation, 0, 1 - brightness, 0)
+            end
+            local selectedColor = Color3.fromHSV(hue, saturation, brightness)
+            component:SetValue(selectedColor)
+            component:_changed(selectedColor, true)
+        end
+        window:_connect(mapHit.InputBegan, function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                component._colorDragMode = "Map"
+                updateColorPicker(input, "Map")
+            end
+        end, window._overlayOwner)
+        window:_connect(hueHit.InputBegan, function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                component._colorDragMode = "Hue"
+                updateColorPicker(input, "Hue")
+            end
+        end, window._overlayOwner)
+        window:_connect(UserInputService.InputChanged, function(input)
+            if component._colorDragMode == "Map"
+                and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                updateColorPicker(input, "Map")
+            elseif component._colorDragMode == "Hue"
+                and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                updateColorPicker(input, "Hue")
+            end
+        end, window._overlayOwner)
+        window:_connect(UserInputService.InputEnded, function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                component._colorDragMode = nil
+            end
+        end, window._overlayOwner)
+    end, 44, {
+        PaddingRight = 54,
+    })
+    component._colorButton = colorButton
+    component._value = initial
+    component._colorMainSwatch = make("Frame", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = initial,
+        BorderSizePixel = 0,
+        Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.new(0, 38, 0, 30),
+        ZIndex = colorButton.ZIndex + 2,
+    }, component._body)
+    addCorner(component._colorMainSwatch, 7)
+    component:SetValue(initial)
+    return component
+end
+
+function SectionMethods:Paragraph(config)
+    validConfig(config, "Paragraph")
+    assert(config.Content ~= nil, "Paragraph.Content is required")
+    local window = self._window
+    local frame = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 5,
+    }, self._list)
+    if config.Title then
+        window:_text(frame, config.Title, {
+            Size = UDim2.new(1, 0, 0, 22),
+            Font = Enum.Font.GothamMedium,
+            TextSize = 13,
+            ZIndex = 6,
+        })
+    end
+    local content = window:_text(frame, config.Content, {
+        Position = UDim2.new(0, 0, 0, config.Title and 24 or 0),
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        TextColor3 = window.Theme.TextSecondary,
+        TextSize = 13,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 6,
+    })
+    local item = self:_register({
+        Id = config.Id,
+        _kind = "Paragraph",
+        _instance = frame,
+        _window = window,
+        SetContent = function(_, text)
+            content.Text = window:_resolveText(text)
+        end,
+        Destroy = function(_, target)
+            target = target or frame
+            if target.Parent then
+                target:Destroy()
+            end
+        end,
+    })
+    return item
+end
+
+function SectionMethods:Divider(config)
+    config = config or {}
+    local line = make("Frame", {
+        BackgroundColor3 = self._window.Theme.Border,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 1),
+        ZIndex = 5,
+    }, self._list)
+    self._window:_trackTheme(line, "Border", "BackgroundColor3")
+    return self:_register({
+        _kind = "Divider",
+        _instance = line,
+        _window = self._window,
+        Destroy = function()
+            if line.Parent then
+                line:Destroy()
+            end
+        end,
+    })
+end
+
+function SectionMethods:Progress(config)
+    config = config or {}
+    validConfig(config, "Progress")
+    assert(config.Value == nil or (type(config.Value) == "number" and config.Value >= 0 and config.Value <= 1), "Progress.Value must be in [0, 1]")
+    local row = self:_row(config, "Progress")
+    local window = self._window
+    local track = make("Frame", {
+        BackgroundColor3 = window.Theme.ControlTrack,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 0, 8),
+        Size = UDim2.new(1, 0, 0, 12),
+        ZIndex = 8,
+    }, row._body)
+    window:_trackTheme(track, "ControlTrack", "BackgroundColor3")
+    addCorner(track, 6)
+    local fill = make("Frame", {
+        BackgroundColor3 = window.Theme.AccentSecondary,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 0, 1, 0),
+        ZIndex = 9,
+    }, track)
+    window:_trackTheme(fill, "AccentSecondary", "BackgroundColor3")
+    addCorner(fill, 6)
+    local valueLabel = window:_text(row._body, "", {
+        Position = UDim2.new(0, 0, 0, 25),
+        Size = UDim2.new(1, 0, 0, 20),
+        TextColor3 = window.Theme.TextSecondary,
+        TextSize = 12,
+        ZIndex = 8,
+    })
+    local component = self:_register({
+        Id = config.Id,
+        Name = row.Name,
+        _kind = "Progress",
+        _window = window,
+        _row = row._row,
+        _fill = fill,
+        _valueLabel = valueLabel,
+        _indeterminate = config.Indeterminate == true,
+        SetValue = function(target, value)
+            assert(type(value) == "number" and value >= 0 and value <= 1, "Progress.Value must be in [0, 1]")
+            target._value = value
+            fill.Size = UDim2.new(value, 0, 1, 0)
+            valueLabel.Text = config.ShowValue and (tostring(math.floor(value * 100 + 0.5)) .. "%") or safeString(config.Label or "")
+        end,
+        GetValue = function(target)
+            return target._value
+        end,
+        Destroy = function(target)
+            if target._row and target._row.Parent then
+                target._row:Destroy()
+            end
+        end,
+    })
+    if component._indeterminate then
+        fill.Size = UDim2.new(0.35, 0, 1, 0)
+    else
+        component:SetValue(config.Value or 0)
+    end
+    return component
+end
+
+function SectionMethods:State(config)
+    validConfig(config, "State")
+    assert(config.Action == nil or type(config.Action.Callback) == "function", "State.Action.Callback must be a function")
+    assert(config.Icon == nil or (type(config.Icon) == "string" and config.Icon ~= ""), "State.Icon must be a non-empty string")
+    local window = self._window
+    local frame = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = window.Theme.StateSurface,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 5,
+    }, self._list)
+    window:_trackTheme(frame, "StateSurface", "BackgroundColor3")
+    window:_trackLilithSurface(frame, 0.18)
+    addStroke(frame, window.Theme.Border, 0.3, window, "Border")
+    addCorner(frame, 12, window)
+    make("UIPadding", {
+        PaddingBottom = UDim.new(0, 12),
+        PaddingLeft = UDim.new(0, 14),
+        PaddingRight = UDim.new(0, 14),
+        PaddingTop = UDim.new(0, 10),
+    }, frame)
+    make("UIListLayout", {
+        Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, frame)
+    local titleRow = make("Frame", {
+        LayoutOrder = 1,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, -28, 0, 22),
+        ZIndex = 6,
+    }, frame)
+    local title = window:_text(titleRow, config.Title or config.Type or "Notice", {
+        Position = UDim2.new(0, config.Icon and 22 or 0, 0, 0),
+        Size = UDim2.new(1, config.Icon and -22 or 0, 1, 0),
+        Font = Enum.Font.GothamBold,
+        TextSize = 14,
+        ZIndex = 6,
+    })
+    if config.Icon then
+        window:_icon(titleRow, config.Icon, {
+            Position = UDim2.new(0, 0, 0.5, -8),
+            Size = UDim2.fromOffset(16, 16),
+            TextColor3 = window.Theme.AccentSecondary,
+            TextSize = 15,
+            ZIndex = 7,
+        })
+    end
+    local content = window:_text(frame, config.Description or "", {
+        LayoutOrder = 2,
+        Size = UDim2.new(1, -28, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        TextColor3 = window.Theme.TextSecondary,
+        TextSize = 12,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 6,
+    })
+    if config.Action then
+        local actionButton = window:_button(frame, config.Action.Name or "Try again", function()
+            window:_warnCallback("State action", config.Action.Callback)
+        end, {
+            Height = 44,
+            Role = "SurfaceRaised",
+            ZIndex = 7,
+        })
+        actionButton.LayoutOrder = 3
+        actionButton.Size = UDim2.new(1, 0, 0, 44)
+    end
+    return self:_register({
+        Id = config.Id,
+        Name = window:_resolveText(config.Title or config.Type or ""),
+        _kind = "State",
+        _window = window,
+        _instance = frame,
+        SetState = function(_, kind, message)
+            assert(kind == "Loading" or kind == "Empty" or kind == "Error" or kind == "Success", "Invalid State.Type")
+            title.Text = kind
+            content.Text = safeString(message)
+        end,
+        Destroy = function()
+            if frame.Parent then
+                frame:Destroy()
+            end
+        end,
+    })
+end
+
+function SectionMethods:EmptyState(config)
+    config = shallowCopy(config or {})
+    config.Type = "Empty"
+    config.Title = config.Title or "Nothing here yet"
+    return self:State(config)
+end
+
+function SectionMethods:Badge(config)
+    validConfig(config, "Badge")
+    local window = self._window
+    local themeToken = {
+        Neutral = "TextMuted",
+        Info = "AccentSecondary",
+        Success = "Success",
+        Warning = "Warning",
+        Error = "Danger",
+    }
+    local palette = {
+        Neutral = window.Theme[themeToken.Neutral],
+        Info = window.Theme[themeToken.Info],
+        Success = window.Theme[themeToken.Success],
+        Warning = window.Theme[themeToken.Warning],
+        Error = window.Theme[themeToken.Error],
+    }
+    assert(config.Type == nil or palette[config.Type] ~= nil, "Invalid Badge.Type")
+    local badgeType = config.Type or "Neutral"
+    local frame = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.X,
+        BackgroundColor3 = window.Theme.Surface,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 0, 0, 30),
+        ZIndex = 5,
+    }, self._list)
+    window:_trackTheme(frame, "Surface", "BackgroundColor3")
+    addCorner(frame, 8, window, true)
+    local outline = addStroke(frame, palette[badgeType], 0.5, window, themeToken[badgeType])
+    local dot = make("Frame", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundColor3 = palette[badgeType],
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 8, 0.5, 0),
+        Size = UDim2.fromOffset(6, 6),
+        ZIndex = 6,
+    }, frame)
+    addCorner(dot, 4, nil, true)
+    local text = window:_text(frame, config.Text or "", {
+        AutomaticSize = Enum.AutomaticSize.X,
+        Position = UDim2.new(0, 19, 0, 0),
+        Size = UDim2.new(0, 0, 1, 0),
+        TextColor3 = window.Theme[themeToken[badgeType]],
+        Font = Enum.Font.GothamBold,
+        TextSize = 11,
+        ZIndex = 6,
+    })
+    make("UIPadding", {
+        PaddingLeft = UDim.new(0, 0),
+        PaddingRight = UDim.new(0, 8),
+    }, frame)
+    local badge = self:_register({
+        Id = config.Id,
+        _kind = "Badge",
+        _badgeType = badgeType,
+        _instance = frame,
+        _window = window,
+        SetText = function(_, value)
+            text.Text = safeString(value)
+        end,
+        SetType = function(target, kind)
+            assert(palette[kind], "Unknown Badge.Type")
+            target._badgeType = kind
+            local color = window.Theme[themeToken[kind]]
+            dot.BackgroundColor3 = color
+            outline.Color = color
+            text.TextColor3 = color
+            window:_trackTheme(dot, themeToken[kind], "BackgroundColor3")
+            window:_trackTheme(outline, themeToken[kind], "Color")
+            window:_trackTheme(text, themeToken[kind], "TextColor3")
+        end,
+        Destroy = function()
+            if frame.Parent then
+                frame:Destroy()
+            end
+        end,
+    })
+    return badge
+end
+
+function TabMethods:Card(config)
+    validConfig(config, "Card")
+    assert(config.Title ~= nil, "Card.Title is required")
+    assert(config.Icon == nil or (type(config.Icon) == "string" and config.Icon ~= ""), "Card.Icon must be a non-empty string")
+    local cardSize = config.Size or "Auto"
+    assert(cardSize == "Auto" or cardSize == "Small" or cardSize == "Medium" or cardSize == "Wide", "Card.Size must be Auto, Small, Medium, or Wide")
+    assert(config.Height == nil or (type(config.Height) == "number" and config.Height > 0), "Card.Height must be positive")
+    local window = self._window
+    local layoutFrame = self._cardLayoutFrame
+    if not layoutFrame then
+        layoutFrame = make("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0),
+            ZIndex = 3,
+        }, self._page)
+        local cards = {}
+        local cardLayout = function()
+            if not layoutFrame.Parent then
+                return
+            end
+            local width = layoutFrame.AbsoluteSize.X
+            if width <= 0 then
+                return
+            end
+            local gap = 8
+            local cols = math.min(2, math.max(1, math.floor((width + gap) / (220 + gap))))
+            local unit = (width - gap * (cols - 1)) / cols
+            local rows = {}
+            local currentRow = {Cards = {}, Used = 0, Height = 0}
+            table.insert(rows, currentRow)
+            for _, card in ipairs(cards) do
+                local span = card._span == "Wide" and cols or (card._span == "Medium" and math.min(2, cols) or 1)
+                if currentRow.Used + span > cols then
+                    currentRow = {Cards = {}, Used = 0, Height = 0}
+                    table.insert(rows, currentRow)
+                end
+                local cardWidth = unit * span + gap * (span - 1)
+                local textWidth = math.max(120, cardWidth - (card.Icon and 64 or 40))
+                local titleHeight = math.max(18, TextService:GetTextSize(card._titleLabel.Text, 12, Enum.Font.GothamMedium, Vector2.new(textWidth, 1000)).Y)
+                local valueHeight = math.max(28, TextService:GetTextSize(safeString(card._value), 23, Enum.Font.GothamBold, Vector2.new(textWidth, 1000)).Y)
+                local descriptionHeight = 0
+                if card._descriptionLabel then
+                    descriptionHeight = TextService:GetTextSize(card._descriptionLabel.Text, 11, Enum.Font.Gotham, Vector2.new(textWidth, 1000)).Y
+                end
+                card._height = math.max(card._baseHeight, 12 + titleHeight + 4 + valueHeight + descriptionHeight + 12)
+                card._titleLabel.Size = UDim2.new(1, -(card.Icon and 64 or 40), 0, titleHeight)
+                card._valueLabel.Position = UDim2.new(0, 26, 0, 12 + titleHeight + 4)
+                card._valueLabel.Size = UDim2.new(1, -40, 0, valueHeight)
+                if card._descriptionLabel then
+                    card._descriptionLabel.Position = UDim2.new(0, 26, 0, 12 + titleHeight + 4 + valueHeight)
+                    card._descriptionLabel.Size = UDim2.new(1, -40, 0, descriptionHeight)
+                end
+                table.insert(currentRow.Cards, {Item = card, Span = span, Column = currentRow.Used + 1})
+                currentRow.Used = currentRow.Used + span
+                currentRow.Height = math.max(currentRow.Height, card._height)
+            end
+            local totalHeight = 0
+            for _, row in ipairs(rows) do
+                for _, placement in ipairs(row.Cards) do
+                    local card = placement.Item
+                    card.Frame.Position = UDim2.new(0, (placement.Column - 1) * (unit + gap), 0, totalHeight)
+                    card.Frame.Size = UDim2.new(0, unit * placement.Span + gap * (placement.Span - 1), 0, row.Height)
+                end
+                totalHeight = totalHeight + row.Height + gap
+            end
+            layoutFrame.Size = UDim2.new(1, 0, 0, math.max(0, totalHeight - gap))
+            window:_updatePageCanvas(self)
+        end
+        self._cardLayoutFrame = layoutFrame
+        self._cards = cards
+        self._cardLayout = cardLayout
+        table.insert(self._cardLayouts, cardLayout)
+        window:_connect(layoutFrame:GetPropertyChangedSignal("AbsoluteSize"), cardLayout)
+    end
+    local cards = self._cards
+    local cardLayout = self._cardLayout
+    local frame = make("Frame", {
+        BackgroundColor3 = window.Theme.StateSurface,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 220, 0, config.Height or 104),
+        ZIndex = 4,
+    }, layoutFrame)
+    window:_trackTheme(frame, "StateSurface", "BackgroundColor3")
+    window:_trackLilithSurface(frame, 0.22)
+    addCorner(frame, 6, window, true)
+    addStroke(frame, window.Theme.Border, 0, window, "Border")
+    local accentRole = (config.Accent == "Green" or config.Accent == "Cyan") and "AccentSecondary" or (config.Accent == "None" and "Border" or "Accent")
+    local accentColor = window.Theme[accentRole]
+    local accent = make("Frame", {
+        BackgroundColor3 = accentColor,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 14, 0, 14),
+        Size = UDim2.new(0, 3, 1, -28),
+        ZIndex = 5,
+    }, frame)
+    window:_trackTheme(accent, accentRole, "BackgroundColor3")
+    addCorner(accent, 3)
+    local title = window:_text(frame, config.Title or "", {
+        Position = UDim2.new(0, 26, 0, 12),
+        Size = UDim2.new(1, -(config.Icon and 64 or 40), 0, 20),
+        TextColor3 = window.Theme.TextSecondary,
+        TextSize = 12,
+        TextWrapped = true,
+        ZIndex = 5,
+    })
+    if config.Icon then
+        window:_icon(frame, config.Icon, {
+            Position = UDim2.new(1, -28, 0, 14),
+            Size = UDim2.fromOffset(16, 16),
+            TextColor3 = accentColor,
+            TextSize = 14,
+            ZIndex = 6,
+        })
+    end
+    local value = window:_text(frame, config.Value or "", {
+        Position = UDim2.new(0, 26, 0, 34),
+        Size = UDim2.new(1, -40, 0, 34),
+        Font = Enum.Font.GothamBold,
+        TextSize = 23,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 5,
+    })
+    local description
+    if config.Description then
+        description = window:_text(frame, config.Description, {
+            Position = UDim2.new(0, 26, 0, 70),
+            Size = UDim2.new(1, -40, 0, 26),
+            TextColor3 = window.Theme.TextMuted,
+            TextSize = 11,
+            TextWrapped = true,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            ZIndex = 5,
+        })
+    end
+    local card
+    card = window:_registerComponent({
+        Id = config.Id,
+        _tab = self,
+        _kind = "Card",
+        _window = window,
+        Frame = frame,
+        Icon = config.Icon,
+        Description = window:_resolveText(config.Description or ""),
+        _span = cardSize,
+        _baseHeight = config.Height or (config.Description and 112 or 88),
+        _height = config.Height or (config.Description and 112 or 88),
+        _titleLabel = title,
+        _valueLabel = value,
+        _descriptionLabel = description,
+        _value = config.Value,
+        SetValue = function(target, nextValue)
+            target._value = nextValue
+            value.Text = safeString(nextValue)
+            cardLayout()
+        end,
+        GetValue = function(target)
+            return target._value
+        end,
+        Destroy = function(target)
+            for index, item in ipairs(cards) do
+                if item == target then
+                    table.remove(cards, index)
+                    break
+                end
+            end
+            if target.Frame.Parent then
+                target.Frame:Destroy()
+            end
+            cardLayout()
+        end,
+    })
+    table.insert(cards, card)
+    cardLayout()
+    return card
+end
+
+function TabMethods:Search(config)
+    return self._window:Search(config)
+end
+
+function SectionMethods:Accordion(config, build)
+    validConfig(config, "Accordion")
+    assert(type(build) == "function", "Accordion requires a build callback")
+    local window = self._window
+    local frame = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 5,
+    }, self._list)
+    local layout = make("UIListLayout", {
+        Padding = UDim.new(0, 6),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, frame)
+    local isExpanded = config.DefaultOpen == true
+    local content
+    local headerStroke
+    local headerIcon
+    local updateHeaderStroke
+    local header, stroke = window:_button(frame, "", function()
+        isExpanded = not isExpanded
+        content.Visible = isExpanded
+        updateHeaderStroke()
+        headerStroke.Transparency = isExpanded and 0.25 or 0.55
+        headerIcon.Rotation = isExpanded and 90 or 0
+    end, {
+        Height = 42,
+        Role = "SurfaceRaised",
+        Radius = 8,
+        Stroke = isExpanded and window.Theme.BorderActive or window.Theme.Border,
+        StrokeTransparency = isExpanded and 0.25 or 0.55,
+        ZIndex = 6,
+    })
+    header.LayoutOrder = 1
+    headerStroke = stroke
+    updateHeaderStroke = function()
+        local role = isExpanded and "BorderActive" or "Border"
+        window:_trackTheme(headerStroke, role, "Color")
+        headerStroke.Color = window.Theme[role]
+    end
+    updateHeaderStroke()
+    local headerLabel = window:_text(header, config.Name, {
+        Position = UDim2.new(0, 14, 0, 0),
+        Size = UDim2.new(1, -56, 1, 0),
+        Font = Enum.Font.GothamMedium,
+        TextSize = 13,
+        ZIndex = header.ZIndex + 1,
+    })
+    headerIcon = window:_icon(header, "chevron-right", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(1, -20, 0.5, 0),
+        Size = UDim2.fromOffset(16, 16),
+        TextColor3 = window.Theme.TextMuted,
+        TextSize = 14,
+        Rotation = isExpanded and 90 or 0,
+        ZIndex = header.ZIndex + 1,
+    }, ">")
+    if type(config.Name) == "table" and config.Name.Key then
+        table.insert(window._localized, {Object = headerLabel, Value = config.Name, Property = "Text"})
+    end
+    content = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        LayoutOrder = 2,
+        Size = UDim2.new(1, 0, 0, 0),
+        Visible = isExpanded,
+        ZIndex = 6,
+    }, frame)
+    local contentLayout = make("UIListLayout", {
+        Padding = UDim.new(0, 8),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, content)
+    make("UIPadding", {
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+        PaddingTop = UDim.new(0, 8),
+    }, content)
+    local divider = make("Frame", {
+        BackgroundColor3 = window.Theme.Border,
+        BorderSizePixel = 0,
+        LayoutOrder = 1,
+        Size = UDim2.new(1, 0, 0, 1),
+        ZIndex = 6,
+    }, content)
+    window:_trackTheme(divider, "Border", "BackgroundColor3")
+    local innerSection = createSection(window, content, {Name = config.Name}, self._tab)
+    innerSection._frame.BackgroundTransparency = 1
+    local innerStroke = innerSection._frame:FindFirstChildOfClass("UIStroke")
+    if innerStroke then
+        innerStroke:Destroy()
+    end
+    innerSection._title.Parent.Visible = false
+    local innerPadding = innerSection._frame:FindFirstChildOfClass("UIPadding")
+    if innerPadding then
+        innerPadding:Destroy()
+    end
+    innerSection._frame.LayoutOrder = 2
+    innerSection._frame.Size = UDim2.new(1, 0, 0, 0)
+    local ok, err = pcall(build, innerSection)
+    if not ok then
+        warn("[AstraUI] Accordion build failed: " .. tostring(err))
+    end
+    window:_connect(layout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+        if self._tab then
+            window:_updatePageCanvas(self._tab)
+        end
+    end)
+    window:_connect(innerSection._layout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+        if self._tab then
+            window:_updatePageCanvas(self._tab)
+        end
+    end)
+    window:_connect(contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+        if self._tab then
+            window:_updatePageCanvas(self._tab)
+        end
+    end)
+    local accordion = self:_register({
+        Id = config.Id,
+        Name = window:_resolveText(config.Name),
+        _kind = "Accordion",
+        _window = window,
+        _instance = frame,
+        SetExpanded = function(_, expanded)
+            assert(type(expanded) == "boolean", "SetExpanded expects a boolean")
+            isExpanded = expanded
+            content.Visible = expanded
+            updateHeaderStroke()
+            headerStroke.Transparency = expanded and 0.25 or 0.55
+            headerIcon.Rotation = expanded and 90 or 0
+        end,
+        Destroy = function()
+            frame:Destroy()
+        end,
+    })
+    return accordion
+end
+
+function SectionMethods:Custom(config)
+    validConfig(config, "Custom")
+    assert(type(config.Build) == "function", "Custom.Build must be a function")
+    assert(type(config.Height) == "number" and config.Height > 0, "Custom.Height must be positive")
+    local window = self._window
+    local host = make("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, config.Height),
+        ZIndex = 5,
+    }, self._list)
+    local cleanups = {}
+    local context = {
+        GetTheme = function()
+            return shallowCopy(window.Theme)
+        end,
+        GetLayoutMode = function()
+            return window._narrow and "Narrow" or (window._compact and "Compact" or "Wide")
+        end,
+        RegisterCleanup = function(_, cleanup)
+            assert(type(cleanup) == "function", "RegisterCleanup expects a function")
+            table.insert(cleanups, cleanup)
+        end,
+    }
+    local ok, root, cleanup = pcall(config.Build, host, context)
+    if not ok then
+        host:Destroy()
+        error("Custom.Build failed: " .. tostring(root))
+    end
+    assert(root and root:IsA("GuiObject"), "Custom.Build must return a GuiObject")
+    root.Parent = host
+    if cleanup then
+        assert(type(cleanup) == "function", "Custom cleanup must be a function")
+        table.insert(cleanups, cleanup)
+    end
+    return self:_register({
+        Id = config.Id,
+        _kind = "Custom",
+        _window = window,
+        _instance = host,
+        _cleanup = function()
+            for _, callback in ipairs(cleanups) do
+                local cleanupOk, cleanupError = pcall(callback)
+                if not cleanupOk then
+                    warn("[AstraUI] Custom cleanup failed: " .. tostring(cleanupError))
+                end
+            end
+        end,
+        Destroy = function(target)
+            if target._cleanup then
+                target._cleanup()
+                target._cleanup = nil
+            end
+            if host.Parent then
+                host:Destroy()
+            end
+        end,
+    })
+end
+
+function WindowMethods:Search(config)
+    config = config or {}
+    validConfig(config, "Search")
+    assert(config.Icon == nil or (type(config.Icon) == "string" and config.Icon ~= ""), "Search.Icon must be a non-empty string")
+    if self._search then
+        return self._search
+    end
+    local searchFrame = make("Frame", {
+        BackgroundColor3 = self.Theme.ControlSurface,
+        BorderSizePixel = 0,
+        LayoutOrder = 0,
+        Size = UDim2.new(1, 0, 0, 34),
+        ZIndex = 14,
+    }, self._tabList)
+    self:_trackTheme(searchFrame, "ControlSurface", "BackgroundColor3")
+    addCorner(searchFrame, 8, self)
+    local searchStroke = addStroke(searchFrame, self.Theme.AccentSecondary, 0.2, self, "AccentSecondary")
+    local input = make("TextBox", {
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ClearTextOnFocus = false,
+        Font = Enum.Font.Gotham,
+        PlaceholderColor3 = self.Theme.TextMuted,
+        PlaceholderText = self:_resolveText(config.Placeholder or "Search"),
+        Position = UDim2.fromScale(0, 0),
+        Size = UDim2.fromScale(1, 1),
+        Text = "",
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextColor3 = self.Theme.TextPrimary,
+        TextSize = 13,
+        ZIndex = 15,
+    }, searchFrame)
+    make("UIPadding", {
+        PaddingLeft = UDim.new(0, 34),
+        PaddingRight = UDim.new(0, 12),
+    }, input)
+    local iconName = config.Icon or "search"
+    local searchIcon = self:_icon(searchFrame, iconName, {
+        Position = UDim2.new(0, 4, 0, 0),
+        Size = UDim2.new(0, 22, 1, 0),
+        TextColor3 = self.Theme.TextSecondary,
+        TextSize = 19,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 16,
+    }, "⌕")
+    local resultFrame = make("Frame", {
+        BackgroundColor3 = self.Theme.ControlSurface,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 1, 5),
+        Size = UDim2.new(1, 0, 0, 0),
+        Visible = false,
+        ZIndex = 90,
+    }, searchFrame)
+    self:_trackTheme(resultFrame, "ControlSurface", "BackgroundColor3")
+    resultFrame.AutomaticSize = Enum.AutomaticSize.Y
+    addCorner(resultFrame, 9, self)
+    addStroke(resultFrame, self.Theme.Border, 0.3, self)
+    make("UIPadding", {
+        PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 6),
+        PaddingRight = UDim.new(0, 6),
+        PaddingTop = UDim.new(0, 6),
+    }, resultFrame)
+    local resultsLayout = make("UIListLayout", {
+        Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, resultFrame)
+    local search = setmetatable({
+        _window = self,
+        _frame = searchFrame,
+        _input = input,
+        _icon = searchIcon,
+        _stroke = searchStroke,
+        _results = resultFrame,
+        _layout = resultsLayout,
+        _connections = {},
+    }, SearchMethods)
+    self._search = search
+    if type(config.Placeholder) == "string" or (type(config.Placeholder) == "table" and config.Placeholder.Key) then
+        table.insert(self._localized, {Object = input, Value = config.Placeholder, Property = "PlaceholderText"})
+    end
+    self:_connect(input:GetPropertyChangedSignal("Text"), function()
+        search:_update()
+    end, search)
+    self:_connect(input.Focused, function()
+        self:_trackTheme(searchStroke, "BorderActive", "Color")
+        local colorProperty = searchIcon:IsA("ImageLabel") and "ImageColor3" or "TextColor3"
+        TweenService:Create(searchStroke, TweenInfo.new(0.14), {
+            Color = self.Theme.BorderActive,
+            Transparency = 0,
+        }):Play()
+        TweenService:Create(searchIcon, TweenInfo.new(0.14), {[colorProperty] = self.Theme.TextSecondary}):Play()
+    end, search)
+    self:_connect(input.FocusLost, function()
+        self:_trackTheme(searchStroke, "AccentSecondary", "Color")
+        local colorProperty = searchIcon:IsA("ImageLabel") and "ImageColor3" or "TextColor3"
+        TweenService:Create(searchStroke, TweenInfo.new(0.14), {
+            Color = self.Theme.AccentSecondary,
+            Transparency = 0.2,
+        }):Play()
+        TweenService:Create(searchIcon, TweenInfo.new(0.14), {[colorProperty] = self.Theme.TextSecondary}):Play()
+    end, search)
+    self:_connect(UserInputService.InputBegan, function(inputObject)
+        if inputObject.KeyCode == Enum.KeyCode.Escape and resultFrame.Visible then
+            input.Text = ""
+            resultFrame.Visible = false
+        end
+    end, search)
+    self:_setResponsiveLayout()
+    return search
+end
+
+function SearchMethods:Destroy()
+    for _, connection in ipairs(self._connections or {}) do
+        if connection.Connected then
+            connection:Disconnect()
+        end
+    end
+    for _, connection in ipairs(self._resultConnections or {}) do
+        if connection.Connected then
+            connection:Disconnect()
+        end
+    end
+    if self._frame and self._frame.Parent then
+        self._frame:Destroy()
+    end
+    if self._window._search == self then
+        self._window._search = nil
+    end
+end
+
+function SearchMethods:_update()
+    local window = self._window
+    local trimmedText = string.gsub(self._input.Text, "^%s*(.-)%s*$", "%1")
+    local query = string.lower(trimmedText)
+    for _, connection in ipairs(self._resultConnections or {}) do
+        if connection.Connected then
+            connection:Disconnect()
+        end
+    end
+    self._resultConnections = {}
+    local owner = {_connections = self._resultConnections}
+    for _, child in ipairs(self._results:GetChildren()) do
+        if child:IsA("GuiObject") then
+            child:Destroy()
+        end
+    end
+    if query == "" then
+        self._results.Visible = false
+        return
+    end
+    local matches = 0
+    for _, component in ipairs(window._components) do
+        local haystack = string.lower((component.Name or "") .. " " .. (component.Description or ""))
+        if component.Name and string.find(haystack, query, 1, true) then
+            matches = matches + 1
+            local target = component
+            window:_button(self._results, component.Name, function()
+                local tab = target._section and target._section._tab or target._tab
+                if tab then
+                    window:_selectTab(tab)
+                end
+                self._input:ReleaseFocus()
+                self._input.Text = ""
+                self._results.Visible = false
+                local row = target._row or target.Frame or target._instance
+                local targetTab = target._section and target._section._tab or target._tab
+                if row and row.Parent and targetTab then
+                    local page = targetTab._page
+                    page.CanvasPosition = Vector2.new(0, math.max(0, row.AbsolutePosition.Y - page.AbsolutePosition.Y))
+                end
+            end, {
+                Background = window.Theme.Surface,
+                Height = 42,
+                PaddingLeft = 12,
+                Role = "Surface",
+                StrokeTransparency = 1,
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 91,
+                Owner = owner,
+            })
+        end
+    end
+    if matches == 0 then
+        window:_text(self._results, "No results", {
+            LayoutOrder = 1,
+            Size = UDim2.new(1, -20, 0, 36),
+            Position = UDim2.new(0, 10, 0, 0),
+            TextColor3 = window.Theme.TextMuted,
+            TextSize = 12,
+            ZIndex = 91,
+        })
+    end
+    self._results.Visible = true
+end
+
+loadRestorePng = function(window, imageUrl, configuredDecoder, decoderUrl, targetImage)
+    targetImage = targetImage or window._restoreImageLabel
+    task.spawn(function()
+        local editableImage
+        local ok, err = pcall(function()
+            assert(type(buffer) == "table" and type(buffer.fromstring) == "function", "buffer.fromstring is unavailable")
+            local decoder = configuredDecoder
+            local incompatibleModules = {}
+            if not decoder and script then
+                local roots = {}
+                local seenModules = {}
+                if script.Parent then
+                    table.insert(roots, script.Parent)
+                    if script.Parent.Parent then
+                        table.insert(roots, script.Parent.Parent)
+                    end
+                end
+                for _, root in ipairs(roots) do
+                    for _, descendant in ipairs(root:GetDescendants()) do
+                        if descendant:IsA("ModuleScript") and not seenModules[descendant] then
+                            local moduleName = string.lower((string.gsub(descendant.Name, "[^%w]", "")))
+                            if moduleName == "png" or moduleName == "luaupng" or moduleName == "pngluau" then
+                                seenModules[descendant] = true
+                                local candidate = require(descendant)
+                                if type(candidate) == "table" and type(candidate.decode) == "function"
+                                    and candidate.supportsYieldIfNeeded == true then
+                                    decoder = candidate
+                                    break
+                                end
+                                table.insert(incompatibleModules, descendant:GetFullName())
+                            end
+                        end
+                    end
+                    if decoder then
+                        break
+                    end
+                end
+            end
+            if not decoder then
+                if not decoderUrl then
+                    local detail = #incompatibleModules > 0
+                        and (" Found incompatible ModuleScript(s): " .. table.concat(incompatibleModules, ", ") .. ".")
+                        or ""
+                    error("Add the updated yielding PNG decoder as a sibling ModuleScript named 'png' or 'luau-png', pass PngDecoder, or set PngDecoderUrl." .. detail)
+                end
+                assert(type(loadstring) == "function", "loadstring is unavailable")
+                local decoderSource = game:HttpGet(decoderUrl)
+                local decoderChunk, compileError = loadstring(decoderSource)
+                assert(type(decoderChunk) == "function", "Unable to compile PNG decoder: " .. tostring(compileError))
+                decoder = decoderChunk()
+            end
+            assert(type(decoder) == "table" and type(decoder.decode) == "function",
+                "PNG decoder must expose decode(buffer)")
+            assert(decoder.supportsYieldIfNeeded == true,
+                "PNG decoder must support cooperative yielding; provide the updated luau-png.lua module")
+
+            local encoded = game:HttpGet(imageUrl)
+            assert(type(encoded) == "string" and #encoded >= 24 and #encoded <= 8 * 1024 * 1024, "PNG data is empty or exceeds 8 MB")
+            assert(string.sub(encoded, 1, 8) == "\137PNG\13\10\26\10", "Image URL did not return a PNG")
+            local function readBigEndian(offset)
+                return (((string.byte(encoded, offset) * 256 + string.byte(encoded, offset + 1)) * 256
+                    + string.byte(encoded, offset + 2)) * 256 + string.byte(encoded, offset + 3))
+            end
+            local width, height = readBigEndian(17), readBigEndian(21)
+            assert(width > 0 and height > 0 and width <= 4096 and height <= 4096 and width * height <= 4 * 1024 * 1024,
+                "PNG dimensions exceed the supported 4096 x 4096 pixel limit")
+            local lastYield = os.clock()
+            local decoded = decoder.decode(buffer.fromstring(encoded), {
+                yieldIfNeeded = function()
+                    if window._destroyed then
+                        error("PNG loading cancelled")
+                    end
+                    if os.clock() - lastYield >= 1 / 60 then
+                        lastYield = os.clock()
+                        task.wait()
+                    end
+                end,
+            })
+            assert(decoded.width == width and decoded.height == height and typeof(decoded.pixels) == "buffer",
+                "PNG decoder returned invalid image data")
+            if window._destroyed or not targetImage or not targetImage.Parent then
+                return
+            end
+
+            local maxDimension = targetImage == window._lilithBackgroundImage and 1024 or 256
+            local scale = math.min(1, maxDimension / math.max(width, height))
+            local outputWidth = math.max(1, math.floor(width * scale))
+            local outputHeight = math.max(1, math.floor(height * scale))
+            local outputPixels = decoded.pixels
+            if outputWidth ~= width or outputHeight ~= height then
+                outputPixels = buffer.create(outputWidth * outputHeight * 4)
+                for y = 0, outputHeight - 1 do
+                    local sourceY = math.min(height - 1, math.floor(y * height / outputHeight))
+                    for x = 0, outputWidth - 1 do
+                        local sourceX = math.min(width - 1, math.floor(x * width / outputWidth))
+                        buffer.copy(outputPixels, (y * outputWidth + x) * 4, decoded.pixels, (sourceY * width + sourceX) * 4, 4)
+                    end
+                    if os.clock() - lastYield >= 1 / 60 then
+                        lastYield = os.clock()
+                        task.wait()
+                    end
+                end
+            end
+            if window._destroyed or not targetImage.Parent then
+                return
+            end
+            editableImage = game:GetService("AssetService"):CreateEditableImage({
+                Size = Vector2.new(outputWidth, outputHeight),
+            })
+            assert(editableImage, "EditableImage creation is unavailable")
+            editableImage:WritePixelsBuffer(Vector2.zero, Vector2.new(outputWidth, outputHeight), outputPixels)
+            targetImage.ImageContent = Content.fromObject(editableImage)
+            if targetImage == window._restoreImageLabel then
+                window._restoreEditableImage = editableImage
+                targetImage.Visible = true
+                window._restoreIcon.Visible = false
+            else
+                window._lilithEditableImage = editableImage
+                window._lilithImageLoadState = "loaded"
+                targetImage.Visible = window._themePreset == "Lilith"
+            end
+        end)
+        if not ok then
+            if editableImage then
+                editableImage:Destroy()
+            end
+            if not window._destroyed then
+                if targetImage == window._lilithBackgroundImage then
+                    window._lilithImageLoadState = "failed"
+                end
+                local imageName = targetImage == window._lilithBackgroundImage and "Lilith background" or "restore button"
+                warn("[AstraUI] Unable to load " .. imageName .. " PNG: " .. tostring(err))
+            end
+        end
+    end)
+end
+
+function WindowMethods:_build(config)
+    local parent = config.Parent or (LocalPlayer and LocalPlayer:FindFirstChildOfClass("PlayerGui"))
+    assert(parent, "AstraUI requires a PlayerGui or an explicit Parent")
+    self._screenGui = make("ScreenGui", {
+        DisplayOrder = 50,
+        IgnoreGuiInset = false,
+        Name = "AstraUI",
+        ResetOnSpawn = false,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    }, parent)
+    self._panel = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = self.Theme.Background,
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(self._requestedSize.X.Offset, self._requestedSize.Y.Offset),
+        ZIndex = 1,
+    }, self._screenGui)
+    self._panelScale = make("UIScale", {
+        Scale = 1,
+    }, self._panel)
+    addCorner(self._panel, 8, self, true)
+    addStroke(self._panel, self.Theme.WindowBorder, 0, self, "WindowBorder")
+    self:_trackTheme(self._panel, "Background", "BackgroundColor3")
+    self._lilithBackgroundImage = make("ImageLabel", {
+        Active = false,
+        BackgroundTransparency = 1,
+        ImageTransparency = 0.08,
+        Position = UDim2.fromScale(0, 0),
+        ScaleType = Enum.ScaleType.Crop,
+        Size = UDim2.fromScale(1, 1),
+        Visible = false,
+        ZIndex = 2,
+    }, self._panel)
+    addCorner(self._lilithBackgroundImage, 8, self, true)
+    local aurora = make("Frame", {
+        BackgroundColor3 = self.Theme.Accent,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 2,
+    }, self._panel)
+    self:_trackTheme(aurora, "Accent", "BackgroundColor3")
+    self._auroraGradient = make("UIGradient", {
+        Color = ColorSequence.new(self.Theme.Accent, self.Theme.AccentSecondary),
+        Rotation = 28,
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.35),
+            NumberSequenceKeypoint.new(0.55, 0.9),
+            NumberSequenceKeypoint.new(1, 0.42),
+        }),
+    }, aurora)
+    self._restoreButton = self:_button(self._screenGui, "", function()
+        if not self._restoreWasDragged then
+            self:SetVisible(not self._visibilityTarget)
+        end
+    end, {
+        Size = UDim2.new(0, 48, 0, 48),
+        Height = 48,
+        HoverRole = "AccentSecondary",
+        Role = "AccentSecondary",
+        StrokeRole = "AccentSecondary",
+        StrokeTransparency = 0.1,
+        ZIndex = 200,
+    })
+    self._restoreButton.Position = UDim2.fromOffset(24, 72)
+    self._restoreButton.Visible = true
+    self._restoreButton:SetAttribute("AstraLabel", "Toggle window visibility")
+    self._restoreIcon = self:_icon(self._restoreButton, "layout-dashboard", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(22, 22),
+        TextColor3 = self.Theme.AccentForeground,
+        TextSize = 20,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = self._restoreButton.ZIndex + 1,
+    }, "▦")
+    self._restoreImageLabel = make("ImageLabel", {
+        Active = false,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        ImageTransparency = 0,
+        Position = UDim2.fromScale(0.5, 0.5),
+        ScaleType = Enum.ScaleType.Fit,
+        Size = UDim2.fromOffset(38, 38),
+        Visible = false,
+        ZIndex = self._restoreButton.ZIndex + 1,
+    }, self._restoreButton)
+    addCorner(self._restoreImageLabel, 7, nil, true)
+    local pngDecoderUrl = config.PngDecoderUrl or DEFAULT_PNG_DECODER_URL
+    if config.RestoreImageUrl then
+        loadRestorePng(self, config.RestoreImageUrl, config.PngDecoder, pngDecoderUrl)
+    end
+    self._pngDecoder = config.PngDecoder
+    self._pngDecoderUrl = pngDecoderUrl
+    self._lilithImageLoadState = "idle"
+    self:_connect(self._restoreButton.InputBegan, function(input)
+        self:_beginRestoreButtonDrag(input)
+    end)
+    local header = make("Frame", {
+        BackgroundColor3 = self.Theme.Surface,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 56),
+        ZIndex = 4,
+    }, self._panel)
+    self._header = header
+    self:_trackLilithSurface(header, 0.18)
+    local cornerSize = self.Theme.CornerRadius
+    addCorner(header, cornerSize, self)
+    local headerLeftCorner = make("Frame", {
+        BackgroundColor3 = self.Theme.Surface,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 1, -cornerSize),
+        Size = UDim2.new(0, cornerSize, 0, cornerSize),
+        ZIndex = 4,
+    }, header)
+    self:_trackTheme(headerLeftCorner, "Surface", "BackgroundColor3")
+    self:_trackLilithSurface(headerLeftCorner, 0.18)
+    local headerRightCorner = make("Frame", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundColor3 = self.Theme.Surface,
+        BorderSizePixel = 0,
+        Position = UDim2.new(1, 0, 1, -cornerSize),
+        Size = UDim2.new(0, cornerSize, 0, cornerSize),
+        ZIndex = 4,
+    }, header)
+    self:_trackTheme(headerRightCorner, "Surface", "BackgroundColor3")
+    self:_trackLilithSurface(headerRightCorner, 0.18)
+    self:_trackTheme(header, "Surface", "BackgroundColor3")
+    local title = self:_text(header, config.Title or "Astra UI", {
+        Active = true,
+        Position = UDim2.new(0, 58, 0, 7),
+        Size = UDim2.new(0.4, -58, 0, 25),
+        Font = Enum.Font.GothamBold,
+        TextSize = 17,
+        ZIndex = 6,
+    })
+    self._titleLabel = title
+    local subtitle = self:_text(header, config.Subtitle or "", {
+        Active = true,
+        Position = UDim2.new(0, 58, 0, 31),
+        Size = UDim2.new(0.45, -58, 0, 18),
+        TextColor3 = self.Theme.TextMuted,
+        TextSize = 11,
+        ZIndex = 6,
+    })
+    self._subtitleLabel = subtitle
+    local logo = make("Frame", {
+        BackgroundColor3 = self.Theme.Accent,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 16, 0, 14),
+        Size = UDim2.new(0, 30, 0, 30),
+        ZIndex = 6,
+    }, header)
+    self._logo = logo
+    self:_trackTheme(logo, "Accent", "BackgroundColor3")
+    addCorner(logo, 9)
+    local logoMark = self:_text(logo, "A", {
+        Font = Enum.Font.GothamBold,
+        Size = UDim2.fromScale(1, 1),
+        TextColor3 = self.Theme.TextPrimary,
+        TextSize = 15,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 7,
+    })
+    self._menuButton = self:_button(header, "", function()
+        if self._narrow then
+            self._drawer.Visible = not self._drawer.Visible
+        else
+            local sidebarCollapsed = self._sidebarCollapsed
+            if sidebarCollapsed == nil then
+                sidebarCollapsed = self._compact
+            end
+            self._sidebarCollapsed = not sidebarCollapsed
+            self:_setResponsiveLayout(true)
+        end
+    end, {
+        Position = UDim2.new(0, 8, 0, 7),
+        Size = UDim2.new(0, 44, 0, 44),
+        Height = 44,
+        Background = self.Theme.SurfaceRaised,
+        HoverRole = "SurfaceHover",
+        HoverStrokeTransparency = 0.05,
+        Role = "SurfaceRaised",
+        Stroke = self.Theme.AccentSecondary,
+        StrokeTransparency = 0.2,
+        TextColor = self.Theme.AccentSecondary,
+        ZIndex = 10,
+    })
+    self._menuButton.Position = UDim2.new(0, 8, 0, 7)
+    local function updateSidebarToggleIcon()
+        local collapsed = self._sidebarCollapsed
+        if collapsed == nil then
+            collapsed = self._compact
+        end
+        local iconName = self._narrow and "menu" or (collapsed and "panel-left-open" or "panel-left-close")
+        if self._sidebarToggleIconName == iconName and self._sidebarToggleIcon and self._sidebarToggleIcon.Parent then
+            return
+        end
+        if self._sidebarToggleIcon and self._sidebarToggleIcon.Parent then
+            self._sidebarToggleIcon:Destroy()
+        end
+        self._sidebarToggleIconName = iconName
+        self._sidebarToggleIcon = self:_icon(self._menuButton, iconName, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(18, 18),
+            TextColor3 = self.Theme.AccentSecondary,
+            TextSize = 17,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            ZIndex = self._menuButton.ZIndex + 1,
+        }, self._narrow and "☰" or (collapsed and "›" or "‹"))
+    end
+    self._updateSidebarToggleIcon = updateSidebarToggleIcon
+    updateSidebarToggleIcon()
+    self._headerVersion = self:_text(header, self._headerVersionText or "", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 8),
+        Size = UDim2.new(0, 132, 0, 40),
+        Font = Enum.Font.GothamBold,
+        TextColor3 = self.Theme.TextSecondary,
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        Visible = self._headerVersionText ~= nil and self._headerVersionText ~= "",
+        ZIndex = 6,
+    })
+    self._discordButton = self:_button(header, "", function()
+        if not self._discordUrl or self._discordUrl == "" then
+            self:Notify({
+                Type = "Warning",
+                Title = "Discord link not configured",
+                Content = "Set Discord.Url with SetDiscordLink before using this button.",
+            })
+            return
+        end
+        if not self._discordCopy then
+            self:Notify({
+                Type = "Warning",
+                Title = "Clipboard not configured",
+                Content = "Provide a copy callback with SetDiscordLink to copy the invite.",
+            })
+            return
+        end
+        local ok, err = pcall(self._discordCopy, self._discordUrl)
+        if not ok then
+            warn("[AstraUI] Discord link copy failed: " .. tostring(err))
+            self:Notify({
+                Type = "Error",
+                Title = "Could not copy Discord link",
+                Content = "The configured copy callback failed.",
+            })
+            return
+        end
+        self:Notify({
+            Type = "Success",
+            Title = "Discord link copied",
+            Content = "The invite link is ready to paste.",
+        })
+    end, {
+        Position = UDim2.new(1, -100, 0, 7),
+        Size = UDim2.fromOffset(40, 42),
+        Height = 42,
+        Background = self.Theme.SurfaceRaised,
+        HoverRole = "SurfaceHover",
+        Role = "SurfaceRaised",
+        Stroke = self.Theme.Border,
+        StrokeTransparency = 0.35,
+        TextColor = self.Theme.AccentSecondary,
+        ZIndex = 10,
+    })
+    self._discordButton.Position = UDim2.new(1, -100, 0, 7)
+    self:_icon(self._discordButton, "message-circle-more", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(18, 18),
+        TextColor3 = self.Theme.AccentSecondary,
+        TextSize = 16,
+        ZIndex = self._discordButton.ZIndex + 1,
+    }, "D")
+    self._discordButton:SetAttribute("AstraLabel", "Copy Discord invite")
+    self._settingsButton = self:_button(header, "", function()
+        self:OpenSettings()
+    end, {
+        Position = UDim2.new(1, -148, 0, 7),
+        Size = UDim2.fromOffset(40, 42),
+        Height = 42,
+        Background = self.Theme.SurfaceRaised,
+        HoverRole = "SurfaceHover",
+        Role = "SurfaceRaised",
+        Stroke = self.Theme.Border,
+        StrokeTransparency = 0.35,
+        TextColor = self.Theme.AccentSecondary,
+        ZIndex = 10,
+    })
+    self._settingsButton.Position = UDim2.new(1, -148, 0, 7)
+    self:_icon(self._settingsButton, "settings-2", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(18, 18),
+        TextColor3 = self.Theme.AccentSecondary,
+        TextSize = 17,
+        ZIndex = self._settingsButton.ZIndex + 1,
+    }, "⚙")
+    self._settingsButton:SetAttribute("AstraLabel", "Open settings")
+    self._selectedTabLabel = self:_text(header, "", {
+        Position = UDim2.new(0, 56, 0, 0),
+        Size = UDim2.new(0.35, 0, 1, 0),
+        Font = Enum.Font.GothamMedium,
+        TextSize = 14,
+        Visible = false,
+        ZIndex = 6,
+    })
+    local headerDivider = make("Frame", {
+        BackgroundColor3 = self.Theme.BorderActive,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 1, -1),
+        Size = UDim2.new(1, 0, 0, 1),
+        ZIndex = 8,
+    }, header)
+    self:_trackTheme(headerDivider, "BorderActive", "BackgroundColor3")
+    local headerDragSurface = make("Frame", {
+        Active = true,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 5,
+    }, header)
+    local hideButton = self:_button(header, "", function()
+        self:SetVisible(false)
+    end, {
+        Position = UDim2.new(1, -48, 0, 7),
+        Size = UDim2.new(0, 44, 0, 44),
+        Height = 44,
+        Role = "Surface",
+        ZIndex = 10,
+    })
+    hideButton.Position = UDim2.new(1, -52, 0, 6)
+    self:_icon(hideButton, "minus", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(18, 18),
+        TextColor3 = self.Theme.TextSecondary,
+        TextSize = 18,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = hideButton.ZIndex + 1,
+    }, "−")
+    hideButton:SetAttribute("AstraLabel", "Minimize window")
+    self._body = make("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 56),
+        Size = UDim2.new(1, 0, 1, -56),
+        ZIndex = 2,
+    }, self._panel)
+    self._sidebar = make("Frame", {
+        BackgroundColor3 = self.Theme.Surface,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 210, 1, 0),
+        ZIndex = 3,
+    }, self._body)
+    self:_trackLilithSurface(self._sidebar, 0.18)
+    addCorner(self._sidebar, cornerSize, self)
+    local sidebarTopCorner = make("Frame", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundColor3 = self.Theme.Surface,
+        BorderSizePixel = 0,
+        Position = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.new(0, cornerSize, 0, cornerSize),
+        ZIndex = 3,
+    }, self._sidebar)
+    self:_trackTheme(sidebarTopCorner, "Surface", "BackgroundColor3")
+    self:_trackLilithSurface(sidebarTopCorner, 0.18)
+    local sidebarBottomCorner = make("Frame", {
+        AnchorPoint = Vector2.new(1, 1),
+        BackgroundColor3 = self.Theme.Surface,
+        BorderSizePixel = 0,
+        Position = UDim2.new(1, 0, 1, 0),
+        Size = UDim2.new(0, cornerSize, 0, cornerSize),
+        ZIndex = 3,
+    }, self._sidebar)
+    self:_trackTheme(sidebarBottomCorner, "Surface", "BackgroundColor3")
+    self:_trackLilithSurface(sidebarBottomCorner, 0.18)
+    self:_trackTheme(self._sidebar, "Surface", "BackgroundColor3")
+    self._tabList = make("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 8, 0, 12),
+        Size = UDim2.new(1, -16, 1, -24),
+        ZIndex = 4,
+    }, self._sidebar)
+    make("UIListLayout", {
+        Padding = UDim.new(0, 5),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, self._tabList)
+    self._drawer = make("Frame", {
+        BackgroundColor3 = self.Theme.Surface,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 8, 0, 6),
+        Size = UDim2.new(0, 230, 1, -12),
+        Visible = false,
+        ZIndex = 50,
+    }, self._body)
+    self:_trackLilithSurface(self._drawer, 0.18)
+    addCorner(self._drawer, 12, self)
+    addStroke(self._drawer, self.Theme.Border, 0.2, self)
+    local drawerList = make("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 8, 0, 8),
+        Size = UDim2.new(1, -16, 1, -16),
+        ZIndex = 51,
+    }, self._drawer)
+    self._tabList = self._tabList
+    self._drawerList = drawerList
+    make("UIListLayout", {
+        Padding = UDim.new(0, 5),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, drawerList)
+    self._content = make("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 210, 0, 0),
+        Size = UDim2.new(1, -210, 1, 0),
+        ZIndex = 2,
+    }, self._body)
+    self._pageHost = make("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 2,
+    }, self._content)
+    self._toastContainer = make("Frame", {
+        AnchorPoint = Vector2.new(1, 1),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(1, -18, 1, -18),
+        Size = UDim2.new(0, 280, 0, 320),
+        ZIndex = 200,
+    }, self._screenGui)
+    make("UIListLayout", {
+        Padding = UDim.new(0, 8),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        VerticalAlignment = Enum.VerticalAlignment.Bottom,
+    }, self._toastContainer)
+    self._resizeHandle = make("TextButton", {
+        AnchorPoint = Vector2.new(1, 1),
+        AutoButtonColor = false,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Position = UDim2.new(1, -4, 1, -4),
+        Size = UDim2.fromOffset(30, 30),
+        Text = "",
+        ZIndex = 20,
+    }, self._panel)
+    for index = 1, 3 do
+        local mark = make("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = self.Theme.TextMuted,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 11 + index * 5, 0, 11 + index * 5),
+            Rotation = -45,
+            Size = UDim2.fromOffset(8, 1),
+            ZIndex = self._resizeHandle.ZIndex + 1,
+        }, self._resizeHandle)
+        self:_trackTheme(mark, "TextMuted", "BackgroundColor3")
+    end
+    self:_connect(self._resizeHandle.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            self:_beginResize(input)
+        end
+    end)
+    self._draggable = config.Draggable ~= false
+    local function beginDrag(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            self:_beginDrag(input)
+        end
+    end
+    self:_connect(title.InputBegan, beginDrag)
+    self:_connect(subtitle.InputBegan, beginDrag)
+    self:_connect(headerDragSurface.InputBegan, beginDrag)
+    self:_connect(logo.InputBegan, beginDrag)
+    self:_connect(logoMark.InputBegan, beginDrag)
+    self:_connect(self._selectedTabLabel.InputBegan, beginDrag)
+    self:_connect(self._headerVersion.InputBegan, beginDrag)
+    self:_connect(headerDivider.InputBegan, beginDrag)
+    local originalTab = self._tabList
+    self._tabList = originalTab
+    self:_connect(UserInputService.InputBegan, function(input, processed)
+        self:_onInputBegan(input, processed)
+    end)
+    self:_connect(UserInputService.InputChanged, function(input)
+        self:_updateResize(input)
+        self:_updateDrag(input)
+        self:_updateRestoreButtonDrag(input)
+    end)
+    self:_connect(UserInputService.InputEnded, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            self._resizeInput = nil
+            self._dragInput = nil
+            self._restoreDragInput = nil
+        end
+    end)
+    local camera = workspace.CurrentCamera
+    if camera then
+        self:_connect(camera:GetPropertyChangedSignal("ViewportSize"), function()
+            self:_setResponsiveLayout()
+        end)
+    end
+    self:_connect(self._panel:GetPropertyChangedSignal("AbsoluteSize"), function()
+        self:_setResponsiveLayout()
+    end)
+    self:_setResponsiveLayout()
+    self._ready = true
+end
+
+local function createWindow(config)
+    validConfig(config, "CreateWindow")
+    local initialSize = config.Size or UDim2.fromOffset(920, 600)
+    assert(typeof(initialSize) == "UDim2", "CreateWindow.Size must be a UDim2")
+    assert(config.Theme == nil or type(config.Theme) == "table", "CreateWindow.Theme must be a table")
+    assert(config.ToggleKey == nil or isKeyCode(config.ToggleKey), "CreateWindow.ToggleKey must be an Enum.KeyCode")
+    assert(config.Responsive == nil or type(config.Responsive) == "boolean", "CreateWindow.Responsive must be a boolean")
+    assert(config.Resizable == nil or type(config.Resizable) == "boolean", "CreateWindow.Resizable must be a boolean")
+    assert(config.Draggable == nil or type(config.Draggable) == "boolean", "CreateWindow.Draggable must be a boolean")
+    assert(config.HeaderVersion == nil or type(config.HeaderVersion) == "string", "CreateWindow.HeaderVersion must be a string")
+    assert(config.RestoreImageUrl == nil or (type(config.RestoreImageUrl) == "string"
+        and config.RestoreImageUrl ~= "" and string.match(config.RestoreImageUrl, "^https?://")),
+        "CreateWindow.RestoreImageUrl must be an HTTP(S) URL")
+    assert(config.PngDecoder == nil or (type(config.PngDecoder) == "table"
+        and type(config.PngDecoder.decode) == "function"),
+        "CreateWindow.PngDecoder must expose decode(buffer, options)")
+    assert(config.PngDecoderUrl == nil or (type(config.PngDecoderUrl) == "string"
+        and config.PngDecoderUrl ~= "" and string.match(config.PngDecoderUrl, "^https?://")),
+        "CreateWindow.PngDecoderUrl must be an HTTP(S) URL")
+    assert(config.Discord == nil or type(config.Discord) == "table", "CreateWindow.Discord must be a table")
+    assert(config.Discord == nil or config.Discord.Url == nil or type(config.Discord.Url) == "string", "CreateWindow.Discord.Url must be a string")
+    assert(config.Discord == nil or config.Discord.Copy == nil or type(config.Discord.Copy) == "function", "CreateWindow.Discord.Copy must be a function")
+    assert(config.Localization == nil or type(config.Localization) == "table", "CreateWindow.Localization must be a table")
+    assert(config.IconLibrary == nil or (type(config.IconLibrary) == "table" and type(config.IconLibrary.GetAsset) == "function"), "CreateWindow.IconLibrary must expose GetAsset(name)")
+    assert(config.IconLibraries == nil or type(config.IconLibraries) == "table", "CreateWindow.IconLibraries must be a table")
+    assert(config.IconLibraries == nil or config.IconLibraries.Lucide == nil or (type(config.IconLibraries.Lucide) == "table" and type(config.IconLibraries.Lucide.GetAsset) == "function"), "CreateWindow.IconLibraries.Lucide must expose GetAsset(name)")
+    assert(config.IconLibraries == nil or config.IconLibraries.Solar == nil or type(config.IconLibraries.Solar) == "table", "CreateWindow.IconLibraries.Solar must be an icon map")
+    local theme = shallowCopy(DEFAULT_THEME)
+    for key, value in pairs(config.Theme or {}) do
+        assert(THEME_KEYS[key], "Unknown theme token: " .. tostring(key))
+        if key == "CornerRadius" then
+            assert(type(value) == "number" and value >= 0 and value <= 32, "Theme.CornerRadius must be between 0 and 32")
+        elseif key == "Density" then
+            assert(value == "Compact" or value == "Comfortable", "Theme.Density must be Compact or Comfortable")
+        else
+            assert(typeof(value) == "Color3", "Theme." .. key .. " must be a Color3")
+        end
+        theme[key] = value
+    end
+    local iconLibraries = shallowCopy(DEFAULT_ICON_LIBRARIES)
+    for name, library in pairs(config.IconLibraries or {}) do
+        assert(type(name) == "string", "CreateWindow.IconLibraries keys must be strings")
+        iconLibraries[string.lower(name)] = library
+    end
+    if config.IconLibrary ~= nil
+        and (config.IconLibraries == nil or (config.IconLibraries.Lucide == nil and config.IconLibraries.lucide == nil)) then
+        iconLibraries.lucide = config.IconLibrary
+    end
+    local themeAccentOverrides = {}
+    for _, role in ipairs(THEME_ACCENT_ROLES) do
+        if config.Theme and config.Theme[role] ~= nil then
+            themeAccentOverrides[role] = config.Theme[role]
+        end
+    end
+    local window = setmetatable({
+        _connections = {},
+        _components = {},
+        _ids = {},
+        _localized = {},
+        _themeTargets = {},
+        _buttonThemeTargets = {},
+        _themeAccentOverrides = themeAccentOverrides,
+        _applyingThemePreset = false,
+        _tabs = {},
+        _tabCategories = {},
+        _tabNavOrder = 0,
+        _toasts = {},
+        _keybinds = {},
+        _destroyed = false,
+        _visibilityTarget = true,
+        _themePreset = matchesThemePreset(theme, DEFAULT_THEME) and "Dark"
+            or (matchesThemePreset(theme, LIGHT_THEME) and "Light" or nil),
+        _requestedSize = initialSize,
+        _toggleKey = config.ToggleKey,
+        _narrow = false,
+        _compact = false,
+        _sidebarCollapsed = nil,
+        _sidebarWidth = 210,
+        Responsive = config.Responsive ~= false,
+        Resizable = config.Resizable ~= false,
+        Theme = theme,
+        IconLibrary = config.IconLibrary,
+        IconLibraries = iconLibraries,
+        _headerVersionText = config.HeaderVersion or "",
+        _discordUrl = config.Discord and config.Discord.Url,
+        _discordCopy = config.Discord and config.Discord.Copy,
+        Localization = shallowCopy(config.Localization),
+    }, WindowMethods)
+    window.Localization.Locale = window.Localization.Locale or "en"
+    window:_build(config)
+    return window
+end
+
+local AstraUI = {
+    Version = "0.1.0",
+    CreateWindow = function(first, second)
+        return createWindow(second or first)
+    end,
+}
+
+return AstraUI
