@@ -3,7 +3,6 @@ local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local ACCENT = Color3.fromRGB(129, 130, 255)
-local GREEN = Color3.fromRGB(46, 211, 159)
 local THAI_TEXT = {
     ["Astra Analytics"] = "Astra Analytics",
     ["Live experience dashboard"] = "แดชบอร์ดประสบการณ์แบบเรียลไทม์",
@@ -110,9 +109,6 @@ local window = AstraUI:CreateWindow({
     Resizable = true,
     Draggable = true,
     Theme = {
-        BorderActive = GREEN,
-        Accent = ACCENT,
-        AccentSecondary = GREEN,
         CornerRadius = 10,
     },
     Localization = {

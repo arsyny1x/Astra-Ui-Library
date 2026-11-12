@@ -765,31 +765,33 @@ function WindowMethods:_setResponsiveLayout(animateSidebar)
     end
     self._contentScale.Scale = contentScale
     self._uiRoot.Size = UDim2.fromScale(1 / contentScale, 1 / contentScale)
+    local layoutSafeWidth = safeWidth / contentScale
+    local layoutSafeHeight = safeHeight / contentScale
     self._narrow = narrow
     self._compact = safeWidth >= 600 and safeWidth < 900
     local sidebarCollapsed = self._sidebarCollapsed
     if sidebarCollapsed == nil then
         sidebarCollapsed = self._compact
     end
-    local requestedWidth = self._requestedSize.X.Offset + self._requestedSize.X.Scale * safeWidth
-    local requestedHeight = self._requestedSize.Y.Offset + self._requestedSize.Y.Scale * safeHeight
+    local requestedWidth = self._requestedSize.X.Offset + self._requestedSize.X.Scale * layoutSafeWidth
+    local requestedHeight = self._requestedSize.Y.Offset + self._requestedSize.Y.Scale * layoutSafeHeight
     local width
     local height
     if self.Responsive then
-        width = math.min(requestedWidth, safeWidth)
-        height = math.min(requestedHeight, safeHeight)
+        width = math.min(requestedWidth, layoutSafeWidth)
+        height = math.min(requestedHeight, layoutSafeHeight)
         if narrow then
-            width = safeWidth
-            height = safeHeight
+            width = layoutSafeWidth
+            height = layoutSafeHeight
         end
     else
-        width = math.min(requestedWidth, safeWidth)
-        height = math.min(requestedHeight, safeHeight)
+        width = math.min(requestedWidth, layoutSafeWidth)
+        height = math.min(requestedHeight, layoutSafeHeight)
     end
-    local minimumWidth = math.min(narrow and 320 or 680, safeWidth)
-    local minimumHeight = math.min(narrow and 360 or 440, safeHeight)
-    width = math.max(math.min(width, safeWidth), minimumWidth)
-    height = math.max(math.min(height, safeHeight), minimumHeight)
+    local minimumWidth = math.min(narrow and 320 or 680, layoutSafeWidth)
+    local minimumHeight = math.min(narrow and 360 or 440, layoutSafeHeight)
+    width = math.max(math.min(width, layoutSafeWidth), minimumWidth)
+    height = math.max(math.min(height, layoutSafeHeight), minimumHeight)
     self._panel.Size = UDim2.fromOffset(width, height)
     if not self._layoutInitialized then
         self._panel.Position = UDim2.new(
@@ -1759,10 +1761,9 @@ function WindowMethods:_updateRestoreButtonDrag(input)
     local buttonSize = self._restoreButton.AbsoluteSize
     local maxX = math.max(8, viewport.X - insetBottomRight.X - buttonSize.X - 8)
     local maxY = math.max(8, viewport.Y - insetTopLeft.Y - insetBottomRight.Y - buttonSize.Y - 8)
-    local scale = self._contentScale.Scale
-    local x = clamp(self._restoreDragStartPosition.X.Offset * scale + delta.X, 8, maxX)
-    local y = clamp(self._restoreDragStartPosition.Y.Offset * scale + delta.Y, 8, maxY)
-    self._restoreButton.Position = UDim2.fromOffset(x / scale, y / scale)
+    local x = clamp(self._restoreDragStartPosition.X.Offset + delta.X, 8, maxX)
+    local y = clamp(self._restoreDragStartPosition.Y.Offset + delta.Y, 8, maxY)
+    self._restoreButton.Position = UDim2.fromOffset(x, y)
 end
 
 function WindowMethods:_beginResize(input)
@@ -2235,7 +2236,7 @@ function TabMethods:Section(config)
                 local scale = window._contentScale.Scale
                 local leftHeight = leftLayout.AbsoluteContentSize.Y / scale
                 local rightHeight = rightLayout.AbsoluteContentSize.Y / scale
-                local stacked = window._narrow or frame.AbsoluteSize.X < 740
+                local stacked = frame.AbsoluteSize.X < 360 * scale
                 if stacked then
                     left.Position = UDim2.new(0, 0, 0, 0)
                     left.Size = UDim2.new(1, 0, 0, leftHeight)
@@ -2856,8 +2857,10 @@ function WindowMethods:_showOptions(component, multiple)
     local popupWidth = math.min(math.max(triggerSize.X, isPlayerDropdown and 280 or 240), panelSize.X - 24)
     local playerColumns = 1
     if isPlayerDropdown then
-        local availableWidth = popupWidth - 26
-        playerColumns = math.max(1, math.min(4, math.floor((availableWidth + 4) / 224)))
+        local scaledPopupWidth = popupWidth * scale
+        local scaledGap = 4 * scale
+        local scaledAvailableWidth = scaledPopupWidth - 26 * scale
+        playerColumns = math.max(1, math.min(4, math.floor((scaledAvailableWidth + scaledGap) / (220 * scale + scaledGap))))
     end
     local optionRows = isPlayerDropdown
         and math.ceil(math.max(1, #component._options) / playerColumns)
@@ -2929,11 +2932,14 @@ function WindowMethods:_showOptions(component, multiple)
         }, list)
         local function layoutPlayerOptions()
             local scale = self._contentScale.Scale
-            local availableWidth = list.AbsoluteSize.X / scale - 10
-            if availableWidth <= 0 then
+            local gap = 4
+            local scaledGap = gap * scale
+            local scaledAvailableWidth = list.AbsoluteSize.X - 10 * scale
+            if scaledAvailableWidth <= 0 then
                 return
             end
-            local columns = math.max(1, math.min(4, math.floor((availableWidth + gap) / (220 + gap))))
+            local columns = math.max(1, math.min(4, math.floor((scaledAvailableWidth + scaledGap) / (220 * scale + scaledGap))))
+            local availableWidth = scaledAvailableWidth / scale
             local cellWidth = (availableWidth - gap * (columns - 1)) / columns
             playerGrid.CellSize = UDim2.new(0, cellWidth, 0, optionHeight - gap)
             local rows = math.ceil(#component._options / columns)
@@ -3214,13 +3220,16 @@ function SectionMethods:PlayerDropdown(config)
         if component._destroyed or not component._selectedList.Parent then
             return
         end
-        local width = component._selectedList.AbsoluteSize.X / self._window._contentScale.Scale
-        if width <= 0 then
+        local scale = self._window._contentScale.Scale
+        local gap = 6
+        local scaledGap = gap * scale
+        local scaledWidth = component._selectedList.AbsoluteSize.X
+        if scaledWidth <= 0 then
             return
         end
-        local gap = 6
         local minCellWidth = 160
-        local columns = math.max(1, math.min(4, math.floor((width + gap) / (minCellWidth + gap))))
+        local columns = math.max(1, math.min(4, math.floor((scaledWidth + scaledGap) / (minCellWidth * scale + scaledGap))))
+        local width = scaledWidth / scale
         local cellWidth = (width - gap * (columns - 1)) / columns
         component._playerGrid.CellSize = UDim2.new(0, cellWidth, 0, 40)
         local rows = math.ceil(#component._value / columns)
@@ -4024,12 +4033,15 @@ function TabMethods:Card(config)
             if not layoutFrame.Parent then
                 return
             end
-            local width = layoutFrame.AbsoluteSize.X / window._contentScale.Scale
-            if width <= 0 then
+            local scale = window._contentScale.Scale
+            local gap = 8
+            local scaledGap = gap * scale
+            local scaledWidth = layoutFrame.AbsoluteSize.X
+            if scaledWidth <= 0 then
                 return
             end
-            local gap = 8
-            local cols = math.min(2, math.max(1, math.floor((width + gap) / (220 + gap))))
+            local cols = math.min(2, math.max(1, math.floor((scaledWidth + scaledGap) / (220 * scale + scaledGap))))
+            local width = scaledWidth / scale
             local unit = (width - gap * (cols - 1)) / cols
             local rows = {}
             local currentRow = {Cards = {}, Used = 0, Height = 0}
@@ -4730,11 +4742,11 @@ function WindowMethods:_build(config)
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     }, parent)
     self._uiRoot = make("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
+        AnchorPoint = Vector2.zero,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ClipsDescendants = false,
-        Position = UDim2.fromScale(0.5, 0.5),
+        Position = UDim2.fromScale(0, 0),
         Size = UDim2.fromScale(1, 1),
         ZIndex = 1,
     }, self._screenGui)
@@ -4792,7 +4804,7 @@ function WindowMethods:_build(config)
             NumberSequenceKeypoint.new(1, 0.42),
         }),
     }, aurora)
-    self._restoreButton = self:_button(self._uiRoot, "", function()
+    self._restoreButton = self:_button(self._screenGui, "", function()
         if not self._restoreWasDragged then
             self:SetVisible(not self._visibilityTarget)
         end
@@ -5134,6 +5146,7 @@ function WindowMethods:_build(config)
         Size = UDim2.new(1, -16, 1, -24),
         ZIndex = 4,
     }, self._sidebar)
+    self:_trackTheme(self._tabList, "AccentSecondary", "ScrollBarImageColor3")
     make("UIListLayout", {
         Padding = UDim.new(0, 5),
         SortOrder = Enum.SortOrder.LayoutOrder,
@@ -5162,6 +5175,7 @@ function WindowMethods:_build(config)
         Size = UDim2.new(1, -16, 1, -16),
         ZIndex = 51,
     }, self._drawer)
+    self:_trackTheme(drawerList, "AccentSecondary", "ScrollBarImageColor3")
     self._tabList = self._tabList
     self._drawerList = drawerList
     make("UIListLayout", {
