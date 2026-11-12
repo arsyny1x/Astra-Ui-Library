@@ -15,6 +15,7 @@
 - [State and localization](docs/state-and-localization.md)
 - [PNG images](docs/png-images.md)
 - [Complete example](docs/examples.md)
+- [Demo script](docs/demo.md)
 - [Publish with GitHub Pages](docs/deployment.md)
 
 **Reference**

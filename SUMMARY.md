@@ -14,6 +14,7 @@
 * [Display components](docs/display-components.md)
 * [Cards, accordions, and custom UI](docs/layout-components.md)
 * [Complete example](docs/examples.md)
+* [Demo script](docs/demo.md)
 * [Themes and customization](docs/themes.md)
 * [State and localization](docs/state-and-localization.md)
 * [PNG images](docs/png-images.md)
