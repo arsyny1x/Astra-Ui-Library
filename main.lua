@@ -5,6 +5,8 @@ local GuiService = game:GetService("GuiService")
 local TextService = game:GetService("TextService")
 
 local LocalPlayer = Players.LocalPlayer
+local platform = UserInputService:GetPlatform()
+local IS_MOBILE_PLATFORM = platform == Enum.Platform.Android or platform == Enum.Platform.IOS
 local ICON_LIBRARY_URLS = {
     Lucide = "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/main/source.lua",
     Solar = "https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/solar/dist/Icons.lua",
@@ -672,7 +674,8 @@ function WindowMethods:_updatePageCanvas(tab)
     if not tab or not tab._pageLayout or not tab._page then
         return
     end
-    tab._page.CanvasSize = UDim2.new(0, 0, 0, tab._pageLayout.AbsoluteContentSize.Y + 32)
+    local scale = tab._window._contentScale and tab._window._contentScale.Scale or 1
+    tab._page.CanvasSize = UDim2.new(0, 0, 0, tab._pageLayout.AbsoluteContentSize.Y / scale + 32)
 end
 
 function WindowMethods:_styleTabs(animate)
@@ -756,6 +759,12 @@ function WindowMethods:_setResponsiveLayout(animateSidebar)
     local safeWidth = math.max(1, viewport.X - insetTopLeft.X - insetBottomRight.X - 20)
     local safeHeight = math.max(1, viewport.Y - insetTopLeft.Y - insetBottomRight.Y - 20)
     local narrow = safeWidth < 600
+    local contentScale = 1
+    if IS_MOBILE_PLATFORM then
+        contentScale = clamp(math.min(safeWidth / 460, safeHeight / 640), 0.7, 0.8)
+    end
+    self._contentScale.Scale = contentScale
+    self._uiRoot.Size = UDim2.fromScale(1 / contentScale, 1 / contentScale)
     self._narrow = narrow
     self._compact = safeWidth >= 600 and safeWidth < 900
     local sidebarCollapsed = self._sidebarCollapsed
@@ -785,25 +794,26 @@ function WindowMethods:_setResponsiveLayout(animateSidebar)
     if not self._layoutInitialized then
         self._panel.Position = UDim2.new(
             0.5,
-            (insetTopLeft.X - insetBottomRight.X) / 2,
+            (insetTopLeft.X - insetBottomRight.X) / (2 * contentScale),
             0.5,
-            (insetTopLeft.Y - insetBottomRight.Y) / 2
+            (insetTopLeft.Y - insetBottomRight.Y) / (2 * contentScale)
         )
         self._layoutInitialized = true
     else
         local halfWidth = self._panel.AbsoluteSize.X / 2
         local halfHeight = self._panel.AbsoluteSize.Y / 2
+        local positionScale = self._contentScale.Scale
         local x = clamp(
-            self._panel.Position.X.Offset,
+            self._panel.Position.X.Offset * positionScale,
             -viewport.X / 2 + halfWidth + insetTopLeft.X,
             viewport.X / 2 - halfWidth - insetBottomRight.X
         )
         local y = clamp(
-            self._panel.Position.Y.Offset,
+            self._panel.Position.Y.Offset * positionScale,
             -viewport.Y / 2 + halfHeight + insetTopLeft.Y,
             viewport.Y / 2 - halfHeight - insetBottomRight.Y
         )
-        self._panel.Position = UDim2.new(0.5, x, 0.5, y)
+        self._panel.Position = UDim2.new(0.5, x / positionScale, 0.5, y / positionScale)
     end
 
     self._menuButton.Visible = true
@@ -826,10 +836,12 @@ function WindowMethods:_setResponsiveLayout(animateSidebar)
     self._settingsButton.Position = UDim2.new(1, narrow and -100 or -148, 0, 7)
     if self._settingsPanel then
         self._settingsPanel.AnchorPoint = narrow and Vector2.new(0.5, 0.5) or Vector2.new(1, 0)
-        self._settingsPanel.Position = narrow and UDim2.fromScale(0.5, 0.5) or UDim2.new(1, -12, 0, 58)
+        self._settingsPanel.Position = narrow
+            and UDim2.fromScale(0.5, 0.5)
+            or UDim2.new(1, -12, 0, 58)
         self._settingsPanel.Size = UDim2.fromOffset(
-            math.max(1, math.min(320, self._panel.AbsoluteSize.X - 24)),
-            math.max(1, math.min(350, self._panel.AbsoluteSize.Y - 24))
+            math.max(1, math.min(320, self._panel.AbsoluteSize.X / contentScale - 24)),
+            math.max(1, math.min(350, self._panel.AbsoluteSize.Y / contentScale - 24))
         )
     end
     if self._search then
@@ -1411,6 +1423,7 @@ function WindowMethods:OpenSettings()
     local overlay = self:_createOverlay()
     overlay.BackgroundTransparency = 1
     overlay.ZIndex = 100
+    local scale = self._contentScale.Scale
 
     local panel = make("Frame", {
         AnchorPoint = self._narrow and Vector2.new(0.5, 0.5) or Vector2.new(1, 0),
@@ -1418,8 +1431,8 @@ function WindowMethods:OpenSettings()
         BorderSizePixel = 0,
         Position = self._narrow and UDim2.fromScale(0.5, 0.5) or UDim2.new(1, -12, 0, 58),
         Size = UDim2.fromOffset(
-            math.max(1, math.min(320, self._panel.AbsoluteSize.X - 24)),
-            math.max(1, math.min(350, self._panel.AbsoluteSize.Y - 24))
+            math.max(1, math.min(320, self._panel.AbsoluteSize.X / scale - 24)),
+            math.max(1, math.min(350, self._panel.AbsoluteSize.Y / scale - 24))
         ),
         ZIndex = 120,
     }, overlay)
@@ -1491,7 +1504,14 @@ function WindowMethods:OpenSettings()
     }, content)
     self:_connect(contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
         if content.Parent then
-            content.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + contentPadding.PaddingTop.Offset + contentPadding.PaddingBottom.Offset)
+            content.CanvasSize = UDim2.new(
+                0,
+                0,
+                0,
+                contentLayout.AbsoluteContentSize.Y / self._contentScale.Scale
+                    + contentPadding.PaddingTop.Offset
+                    + contentPadding.PaddingBottom.Offset
+            )
         end
     end, self._overlayOwner)
 
@@ -1652,7 +1672,14 @@ function WindowMethods:OpenSettings()
     end
     self._settingsRefreshLocale = refreshLocale
     refreshLocale()
-    content.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + contentPadding.PaddingTop.Offset + contentPadding.PaddingBottom.Offset)
+    content.CanvasSize = UDim2.new(
+        0,
+        0,
+        0,
+        contentLayout.AbsoluteContentSize.Y / self._contentScale.Scale
+            + contentPadding.PaddingTop.Offset
+            + contentPadding.PaddingBottom.Offset
+    )
 
     self:_connect(overlay.InputBegan, function(input)
         if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
@@ -1694,12 +1721,13 @@ function WindowMethods:_updateDrag(input)
     local viewport = camera and camera.ViewportSize or Vector2.new(1024, 768)
     local halfWidth = self._panel.AbsoluteSize.X / 2
     local halfHeight = self._panel.AbsoluteSize.Y / 2
-    local x = self._dragStartPosition.X.Offset + delta.X
-    local y = self._dragStartPosition.Y.Offset + delta.Y
+    local scale = self._contentScale.Scale
+    local x = self._dragStartPosition.X.Offset * scale + delta.X
+    local y = self._dragStartPosition.Y.Offset * scale + delta.Y
     local insetTopLeft, insetBottomRight = GuiService:GetGuiInset()
     x = clamp(x, -viewport.X / 2 + halfWidth + insetTopLeft.X, viewport.X / 2 - halfWidth - insetBottomRight.X)
     y = clamp(y, -viewport.Y / 2 + halfHeight + insetTopLeft.Y, viewport.Y / 2 - halfHeight - insetBottomRight.Y)
-    self._panel.Position = UDim2.new(0.5, x, 0.5, y)
+    self._panel.Position = UDim2.new(0.5, x / scale, 0.5, y / scale)
 end
 
 function WindowMethods:_beginRestoreButtonDrag(input)
@@ -1731,9 +1759,10 @@ function WindowMethods:_updateRestoreButtonDrag(input)
     local buttonSize = self._restoreButton.AbsoluteSize
     local maxX = math.max(8, viewport.X - insetBottomRight.X - buttonSize.X - 8)
     local maxY = math.max(8, viewport.Y - insetTopLeft.Y - insetBottomRight.Y - buttonSize.Y - 8)
-    local x = clamp(self._restoreDragStartPosition.X.Offset + delta.X, 8, maxX)
-    local y = clamp(self._restoreDragStartPosition.Y.Offset + delta.Y, 8, maxY)
-    self._restoreButton.Position = UDim2.fromOffset(x, y)
+    local scale = self._contentScale.Scale
+    local x = clamp(self._restoreDragStartPosition.X.Offset * scale + delta.X, 8, maxX)
+    local y = clamp(self._restoreDragStartPosition.Y.Offset * scale + delta.Y, 8, maxY)
+    self._restoreButton.Position = UDim2.fromOffset(x / scale, y / scale)
 end
 
 function WindowMethods:_beginResize(input)
@@ -1742,7 +1771,7 @@ function WindowMethods:_beginResize(input)
     end
     self._resizeInput = input
     self._resizeStart = input.Position
-    self._resizeStartSize = self._panel.AbsoluteSize
+    self._resizeStartSize = self._panel.AbsoluteSize / self._contentScale.Scale
 end
 
 function WindowMethods:_updateResize(input)
@@ -1752,7 +1781,7 @@ function WindowMethods:_updateResize(input)
     if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
         return
     end
-    local delta = input.Position - self._resizeStart
+    local delta = (input.Position - self._resizeStart) / self._contentScale.Scale
     local camera = workspace.CurrentCamera
     local viewport = camera and camera.ViewportSize or self._resizeStartSize
     local insetTopLeft, insetBottomRight = GuiService:GetGuiInset()
@@ -2203,19 +2232,22 @@ function TabMethods:Section(config)
                 if not frame.Parent then
                     return
                 end
+                local scale = window._contentScale.Scale
+                local leftHeight = leftLayout.AbsoluteContentSize.Y / scale
+                local rightHeight = rightLayout.AbsoluteContentSize.Y / scale
                 local stacked = window._narrow or frame.AbsoluteSize.X < 740
                 if stacked then
                     left.Position = UDim2.new(0, 0, 0, 0)
-                    left.Size = UDim2.new(1, 0, 0, leftLayout.AbsoluteContentSize.Y)
-                    right.Position = UDim2.new(0, 0, 0, leftLayout.AbsoluteContentSize.Y + 10)
-                    right.Size = UDim2.new(1, 0, 0, rightLayout.AbsoluteContentSize.Y)
-                    frame.Size = UDim2.new(1, 0, 0, leftLayout.AbsoluteContentSize.Y + rightLayout.AbsoluteContentSize.Y + 10)
+                    left.Size = UDim2.new(1, 0, 0, leftHeight)
+                    right.Position = UDim2.new(0, 0, 0, leftHeight + 10)
+                    right.Size = UDim2.new(1, 0, 0, rightHeight)
+                    frame.Size = UDim2.new(1, 0, 0, leftHeight + rightHeight + 10)
                 else
                     left.Position = UDim2.new(0, 0, 0, 0)
-                    left.Size = UDim2.new(0.5, -7, 0, leftLayout.AbsoluteContentSize.Y)
+                    left.Size = UDim2.new(0.5, -7, 0, leftHeight)
                     right.Position = UDim2.new(0.5, 7, 0, 0)
-                    right.Size = UDim2.new(0.5, -7, 0, rightLayout.AbsoluteContentSize.Y)
-                    frame.Size = UDim2.new(1, 0, 0, math.max(leftLayout.AbsoluteContentSize.Y, rightLayout.AbsoluteContentSize.Y))
+                    right.Size = UDim2.new(0.5, -7, 0, rightHeight)
+                    frame.Size = UDim2.new(1, 0, 0, math.max(leftHeight, rightHeight))
                 end
                 window:_updatePageCanvas(self)
             end
@@ -2814,11 +2846,14 @@ function WindowMethods:_showOptions(component, multiple)
     self:_closeOverlay()
     local overlay = self:_createOverlay()
     self._openOverlayComponent = component
-    local panelSize = self._panel.AbsoluteSize
+    local scale = self._contentScale.Scale
+    local panelSize = self._panel.AbsoluteSize / scale
     local trigger = component._button
+    local triggerPosition = (trigger.AbsolutePosition - self._panel.AbsolutePosition) / scale
+    local triggerSize = trigger.AbsoluteSize / scale
     local isPlayerDropdown = component._kind == "PlayerDropdown"
     local optionHeight = isPlayerDropdown and 54 or 38
-    local popupWidth = math.min(math.max(trigger.AbsoluteSize.X, isPlayerDropdown and 280 or 240), panelSize.X - 24)
+    local popupWidth = math.min(math.max(triggerSize.X, isPlayerDropdown and 280 or 240), panelSize.X - 24)
     local playerColumns = 1
     if isPlayerDropdown then
         local availableWidth = popupWidth - 26
@@ -2832,10 +2867,10 @@ function WindowMethods:_showOptions(component, multiple)
         44 + optionRows * optionHeight,
         math.max(90, panelSize.Y - 24)
     )
-    local popupX = clamp(trigger.AbsolutePosition.X - self._panel.AbsolutePosition.X, 12, panelSize.X - popupWidth - 12)
-    local popupY = trigger.AbsolutePosition.Y - self._panel.AbsolutePosition.Y + trigger.AbsoluteSize.Y + 6
+    local popupX = clamp(triggerPosition.X, 12, panelSize.X - popupWidth - 12)
+    local popupY = triggerPosition.Y + triggerSize.Y + 6
     if popupY + popupHeight > panelSize.Y - 12 then
-        popupY = trigger.AbsolutePosition.Y - self._panel.AbsolutePosition.Y - popupHeight - 6
+        popupY = triggerPosition.Y - popupHeight - 6
     end
     popupY = clamp(popupY, 12, panelSize.Y - popupHeight - 12)
     local outside = make("TextButton", {
@@ -2893,7 +2928,8 @@ function WindowMethods:_showOptions(component, multiple)
             SortOrder = Enum.SortOrder.LayoutOrder,
         }, list)
         local function layoutPlayerOptions()
-            local availableWidth = list.AbsoluteSize.X - 10
+            local scale = self._contentScale.Scale
+            local availableWidth = list.AbsoluteSize.X / scale - 10
             if availableWidth <= 0 then
                 return
             end
@@ -3178,7 +3214,7 @@ function SectionMethods:PlayerDropdown(config)
         if component._destroyed or not component._selectedList.Parent then
             return
         end
-        local width = component._selectedList.AbsoluteSize.X
+        local width = component._selectedList.AbsoluteSize.X / self._window._contentScale.Scale
         if width <= 0 then
             return
         end
@@ -3410,17 +3446,20 @@ function SectionMethods:Colorpicker(config)
         window:_closeOverlay()
         local overlay = window:_createOverlay()
         window._openOverlayComponent = component
-        local panelSize = window._panel.AbsoluteSize
+        local scale = window._contentScale.Scale
+        local panelSize = window._panel.AbsoluteSize / scale
         local popupWidth = math.min(360, panelSize.X - 24)
         local popupHeight = math.min(296, panelSize.Y - 24)
+        local buttonPosition = (colorButton.AbsolutePosition - window._panel.AbsolutePosition) / scale
+        local buttonSize = colorButton.AbsoluteSize / scale
         local popupX = clamp(
-            colorButton.AbsolutePosition.X - window._panel.AbsolutePosition.X,
+            buttonPosition.X,
             12,
             panelSize.X - popupWidth - 12
         )
-        local popupY = colorButton.AbsolutePosition.Y - window._panel.AbsolutePosition.Y + colorButton.AbsoluteSize.Y + 6
+        local popupY = buttonPosition.Y + buttonSize.Y + 6
         if popupY + popupHeight > panelSize.Y - 12 then
-            popupY = colorButton.AbsolutePosition.Y - window._panel.AbsolutePosition.Y - popupHeight - 6
+            popupY = buttonPosition.Y - popupHeight - 6
         end
         popupY = clamp(popupY, 12, panelSize.Y - popupHeight - 12)
         local outside = make("TextButton", {
@@ -3985,7 +4024,7 @@ function TabMethods:Card(config)
             if not layoutFrame.Parent then
                 return
             end
-            local width = layoutFrame.AbsoluteSize.X
+            local width = layoutFrame.AbsoluteSize.X / window._contentScale.Scale
             if width <= 0 then
                 return
             end
@@ -4512,7 +4551,10 @@ function SearchMethods:_update()
                 local targetTab = target._section and target._section._tab or target._tab
                 if row and row.Parent and targetTab then
                     local page = targetTab._page
-                    page.CanvasPosition = Vector2.new(0, math.max(0, row.AbsolutePosition.Y - page.AbsolutePosition.Y))
+                    page.CanvasPosition = Vector2.new(
+                        0,
+                        math.max(0, row.AbsolutePosition.Y - page.AbsolutePosition.Y) / window._contentScale.Scale
+                    )
                 end
             end, {
                 Background = window.Theme.Surface,
@@ -4687,6 +4729,18 @@ function WindowMethods:_build(config)
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     }, parent)
+    self._uiRoot = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ClipsDescendants = false,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 1,
+    }, self._screenGui)
+    self._contentScale = make("UIScale", {
+        Scale = 1,
+    }, self._uiRoot)
     self._panel = make("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = self.Theme.Background,
@@ -4697,7 +4751,7 @@ function WindowMethods:_build(config)
         Size = UDim2.fromOffset(self._requestedSize.X.Offset, self._requestedSize.Y.Offset),
         Visible = false,
         ZIndex = 1,
-    }, self._screenGui)
+    }, self._uiRoot)
     self._contentGroup = make("Frame", {
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -4738,7 +4792,7 @@ function WindowMethods:_build(config)
             NumberSequenceKeypoint.new(1, 0.42),
         }),
     }, aurora)
-    self._restoreButton = self:_button(self._screenGui, "", function()
+    self._restoreButton = self:_button(self._uiRoot, "", function()
         if not self._restoreWasDragged then
             self:SetVisible(not self._visibilityTarget)
         end
@@ -5131,7 +5185,7 @@ function WindowMethods:_build(config)
         Position = UDim2.new(1, -18, 1, -18),
         Size = UDim2.new(0, 280, 0, 320),
         ZIndex = 200,
-    }, self._screenGui)
+    }, self._uiRoot)
     make("UIListLayout", {
         Padding = UDim.new(0, 8),
         SortOrder = Enum.SortOrder.LayoutOrder,
@@ -5204,6 +5258,10 @@ function WindowMethods:_build(config)
     self:_connect(self._panel:GetPropertyChangedSignal("AbsoluteSize"), function()
         self:_setResponsiveLayout()
     end)
+    if self._themePreset == "Lilith" then
+        self._lilithImageLoadState = "loading"
+        loadRestorePng(self, LILITH_BACKGROUND_URL, self._pngDecoder, self._pngDecoderUrl, self._lilithBackgroundImage)
+    end
     self:_setResponsiveLayout()
     self._ready = true
 end
@@ -5235,7 +5293,7 @@ local function createWindow(config)
     assert(config.IconLibraries == nil or type(config.IconLibraries) == "table", "CreateWindow.IconLibraries must be a table")
     assert(config.IconLibraries == nil or config.IconLibraries.Lucide == nil or (type(config.IconLibraries.Lucide) == "table" and type(config.IconLibraries.Lucide.GetAsset) == "function"), "CreateWindow.IconLibraries.Lucide must expose GetAsset(name)")
     assert(config.IconLibraries == nil or config.IconLibraries.Solar == nil or type(config.IconLibraries.Solar) == "table", "CreateWindow.IconLibraries.Solar must be an icon map")
-    local theme = shallowCopy(DEFAULT_THEME)
+    local theme = shallowCopy(LILITH_THEME)
     for key, value in pairs(config.Theme or {}) do
         assert(THEME_KEYS[key], "Unknown theme token: " .. tostring(key))
         if key == "CornerRadius" then
@@ -5280,8 +5338,9 @@ local function createWindow(config)
         _visibilityTarget = false,
         _visibilityTweens = {},
         _visibilityGeneration = 0,
-        _themePreset = matchesThemePreset(theme, DEFAULT_THEME) and "Dark"
-            or (matchesThemePreset(theme, LIGHT_THEME) and "Light" or nil),
+        _themePreset = matchesThemePreset(theme, LILITH_THEME) and "Lilith"
+            or (matchesThemePreset(theme, DEFAULT_THEME) and "Dark"
+            or (matchesThemePreset(theme, LIGHT_THEME) and "Light" or nil)),
         _requestedSize = initialSize,
         _toggleKey = config.ToggleKey,
         _narrow = false,

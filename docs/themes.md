@@ -2,6 +2,8 @@
 
 ## Built-in presets
 
+Lilith is the default theme for newly created windows.
+
 ```lua
 window:SetThemePreset("Dark")
 window:SetThemePreset("Light")
@@ -12,7 +14,7 @@ window:SetThemePreset("Lilith")
 - **Light** uses brighter neutral surfaces.
 - **Lilith** uses a cropped artwork background with cool blue surfaces, navy text, crimson accents, and translucent major surfaces.
 
-The Lilith artwork is loaded when that preset is selected. Its availability depends on the configured PNG decoder and `EditableImage` support.
+The Lilith artwork loads by default and whenever that preset is selected. Its availability depends on the configured PNG decoder and `EditableImage` support.
 
 ## Override theme tokens
 
