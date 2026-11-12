@@ -2,7 +2,7 @@
 
 PNG decoding is used for the optional floating toggle-button image and the Lilith background. The library decodes PNG data into Roblox `EditableImage` content.
 
-## Provide a decoder
+## Built-in decoder
 
 The included `png.luau` and `luau-png.lua` modules support cooperative yielding. The decoder must expose:
 
@@ -13,23 +13,20 @@ The `options.yieldIfNeeded` callback should be called periodically during long d
 
 When an image needs decoding, the library first checks for a supplied `PngDecoder`, then a nearby compatible decoder `ModuleScript`, and finally downloads the built-in decoder URL:
 `https://raw.githubusercontent.com/arsyny1x/luau-png/refs/heads/main/png.luau`.
-Override this URL with `PngDecoderUrl` only when you need a different source. Remote source loading requires an executor or runtime that provides `game:HttpGet` and `loadstring`.
-
-### Load decoder via loadstring
-
-You can load and pass a decoder yourself in an executor or runtime that provides `game:HttpGet` and `loadstring`:
+You do not need to load or pass the decoder yourself. Set `RestoreImageUrl` and the library handles decoder loading automatically:
 
 ```lua
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
-local pngDecoder = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/png.luau"))()
 
 local window = AstraUI:CreateWindow({
     Title = "My Dashboard",
-    PngDecoder = pngDecoder,
+    RestoreImageUrl = "https://example.com/icon.png",
 })
 ```
 
-### Override PngDecoderUrl
+`PngDecoder` and `PngDecoderUrl` are optional overrides for custom decoders. Using the built-in remote decoder requires an executor or runtime that provides `game:HttpGet` and `loadstring`; see [Getting started](getting-started.md).
+
+### Override the decoder
 
 Set this only to use a decoder source other than the built-in URL:
 

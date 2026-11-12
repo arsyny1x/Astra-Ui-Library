@@ -44,19 +44,18 @@ local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyn
 
 ### PNG support
 
-Pass the PNG decoder at window creation time:
+The library loads its built-in PNG decoder automatically when an image is used. You only need to provide the image URL:
 
 ```lua
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
-local pngDecoder = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/png.luau"))()
 
 local window = AstraUI:CreateWindow({
     Title = "My Dashboard",
-    PngDecoder = pngDecoder,
+    RestoreImageUrl = "https://example.com/icon.png",
 })
 ```
 
-The bundled decoders expose `decode(buffer, options)` and `supportsYieldIfNeeded = true`.
+No separate `PngDecoder` or `PngDecoderUrl` configuration is needed. The built-in decoder exposes `decode(buffer, options)` and `supportsYieldIfNeeded = true`.
 
 ## Quick start
 
@@ -162,20 +161,18 @@ Explicit accent overrides supplied in `CreateWindow.Theme` or later through `Set
 
 `RestoreImageUrl` optionally supplies the image shown inside the floating window-toggle button. The Lilith theme has its own background artwork URL.
 
-To use PNG images, load the decoder via `loadstring` and pass it to `CreateWindow`:
+To use a PNG image, set `RestoreImageUrl`; the library automatically loads its built-in decoder:
 
 ```lua
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
-local pngDecoder = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/png.luau"))()
 
 local window = AstraUI:CreateWindow({
     Title = "My Dashboard",
     RestoreImageUrl = "https://example.com/icon.png",
-    PngDecoder = pngDecoder,
 })
 ```
 
-The decoder must expose `decode(buffer, options)` and `supportsYieldIfNeeded = true`. If no decoder is supplied or found as a nearby ModuleScript, the library uses its built-in `luau-png` URL; `PngDecoderUrl` can override it for environments that support fetching and executing source. Remote decoder loading is not suitable for a standard Roblox client. If an image cannot be loaded or decoded, the library warns and keeps the built-in toggle icon visible. PNG support depends on `EditableImage` availability and permissions in the target environment.
+The built-in decoder exposes `decode(buffer, options)` and `supportsYieldIfNeeded = true`. `PngDecoder` and `PngDecoderUrl` are optional overrides for custom decoders. Remote decoder loading requires an executor or runtime that provides `game:HttpGet` and `loadstring`, and is not suitable for a standard Roblox client. If an image cannot be loaded or decoded, the library warns and keeps the built-in toggle icon visible. PNG support depends on `EditableImage` availability and permissions in the target environment.
 
 ## Window methods
 
