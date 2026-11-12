@@ -912,7 +912,7 @@ function WindowMethods:_createOverlay()
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         ZIndex = 100,
-    }, self._panel)
+    }, self._contentGroup)
     self._overlay = overlay
     self._overlayOwner = {_connections = {}}
     return overlay
@@ -1324,39 +1324,63 @@ function WindowMethods:SetVisible(visible)
         return
     end
     self._visibilityTarget = visible
+    self._visibilityGeneration = self._visibilityGeneration + 1
+    local generation = self._visibilityGeneration
     if not visible and self._overlay then
         self:_closeOverlay()
     end
-    if self._visibilityTween then
-        self._visibilityTween:Cancel()
-        self._visibilityTween = nil
+    for _, tween in ipairs(self._visibilityTweens) do
+        tween:Cancel()
     end
+    table.clear(self._visibilityTweens)
     if visible and not self._panel.Visible then
-        self._panelScale.Scale = 0.92
+        self._panelScale.Scale = 0.95
+        self._panel.BackgroundTransparency = 1
+        self._panelStroke.Transparency = 1
+        self._contentGroup.GroupTransparency = 1
         self._panel.Visible = true
     end
     if self._restoreButton then
         self._restoreButton.Visible = true
     end
-    local tween = TweenService:Create(
-        self._panelScale,
-        TweenInfo.new(visible and 0.2 or 0.15, Enum.EasingStyle.Quad,
-            visible and Enum.EasingDirection.Out or Enum.EasingDirection.In),
-        {Scale = visible and 1 or 0.96}
+    local tweenInfo = TweenInfo.new(
+        visible and 0.28 or 0.2,
+        visible and Enum.EasingStyle.Quart or Enum.EasingStyle.Quad,
+        visible and Enum.EasingDirection.Out or Enum.EasingDirection.In
     )
-    self._visibilityTween = tween
-    local completedConnection
-    completedConnection = tween.Completed:Connect(function(playbackState)
-        completedConnection:Disconnect()
-        if self._visibilityTween ~= tween then
-            return
-        end
-        self._visibilityTween = nil
-        if playbackState == Enum.PlaybackState.Completed and not visible and not self._destroyed then
-            self._panel.Visible = false
-        end
-    end)
-    tween:Play()
+    local transparency = visible and 0 or 1
+    local scaleTween = TweenService:Create(self._panelScale, tweenInfo, {
+        Scale = visible and 1 or 0.95,
+    })
+    table.insert(self._visibilityTweens, scaleTween)
+    table.insert(self._visibilityTweens, TweenService:Create(self._panel, tweenInfo, {
+        BackgroundTransparency = transparency,
+    }))
+    table.insert(self._visibilityTweens, TweenService:Create(self._panelStroke, tweenInfo, {
+        Transparency = visible and self._panelStrokeTargetTransparency or 1,
+    }))
+    table.insert(self._visibilityTweens, TweenService:Create(self._contentGroup, tweenInfo, {
+        GroupTransparency = transparency,
+    }))
+    local remainingTweens = #self._visibilityTweens
+    for _, tween in ipairs(self._visibilityTweens) do
+        local completedConnection
+        completedConnection = tween.Completed:Connect(function(playbackState)
+            completedConnection:Disconnect()
+            if self._visibilityGeneration ~= generation then
+                return
+            end
+            remainingTweens = remainingTweens - 1
+            if remainingTweens > 0 then
+                return
+            end
+            if playbackState == Enum.PlaybackState.Completed and not visible and not self._destroyed then
+                self._panel.Visible = false
+            end
+            table.clear(self._visibilityTweens)
+        end)
+        tween:Play()
+    end
 end
 
 function WindowMethods:SetToggleKey(keyCode)
@@ -1882,10 +1906,11 @@ function WindowMethods:Destroy()
         self._search:Destroy()
     end
     self:_closeOverlay()
-    if self._visibilityTween then
-        self._visibilityTween:Cancel()
-        self._visibilityTween = nil
+    self._visibilityGeneration = self._visibilityGeneration + 1
+    for _, tween in ipairs(self._visibilityTweens) do
+        tween:Cancel()
     end
+    table.clear(self._visibilityTweens)
     for _, component in ipairs(shallowCopy(self._components)) do
         if component.Destroy then
             pcall(function()
@@ -4673,18 +4698,29 @@ function WindowMethods:_build(config)
     self._panel = make("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = self.Theme.Background,
-        BackgroundTransparency = 0,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(self._requestedSize.X.Offset, self._requestedSize.Y.Offset),
+        Visible = false,
         ZIndex = 1,
     }, self._screenGui)
     self._panelScale = make("UIScale", {
-        Scale = 1,
+        Scale = 0.95,
+    }, self._panel)
+    self._contentGroup = make("CanvasGroup", {
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        GroupTransparency = 1,
+        Position = UDim2.fromScale(0, 0),
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 1,
     }, self._panel)
     addCorner(self._panel, 8, self, true)
-    addStroke(self._panel, self.Theme.WindowBorder, 0, self, "WindowBorder")
+    self._panelStroke = addStroke(self._panel, self.Theme.WindowBorder, 0, self, "WindowBorder")
+    self._panelStrokeTargetTransparency = self._panelStroke.Transparency
+    self._panelStroke.Transparency = 1
     self:_trackTheme(self._panel, "Background", "BackgroundColor3")
     self._lilithBackgroundImage = make("ImageLabel", {
         Active = false,
@@ -4695,7 +4731,7 @@ function WindowMethods:_build(config)
         Size = UDim2.fromScale(1, 1),
         Visible = false,
         ZIndex = 2,
-    }, self._panel)
+    }, self._contentGroup)
     addCorner(self._lilithBackgroundImage, 8, self, true)
     local aurora = make("Frame", {
         BackgroundColor3 = self.Theme.Accent,
@@ -4703,7 +4739,7 @@ function WindowMethods:_build(config)
         BorderSizePixel = 0,
         Size = UDim2.fromScale(1, 1),
         ZIndex = 2,
-    }, self._panel)
+    }, self._contentGroup)
     self:_trackTheme(aurora, "Accent", "BackgroundColor3")
     self._auroraGradient = make("UIGradient", {
         Color = ColorSequence.new(self.Theme.Accent, self.Theme.AccentSecondary),
@@ -4766,7 +4802,7 @@ function WindowMethods:_build(config)
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, 56),
         ZIndex = 4,
-    }, self._panel)
+    }, self._contentGroup)
     self._header = header
     self:_trackLilithSurface(header, 0.18)
     local cornerSize = self.Theme.CornerRadius
@@ -5013,7 +5049,7 @@ function WindowMethods:_build(config)
         Position = UDim2.new(0, 0, 0, 56),
         Size = UDim2.new(1, 0, 1, -56),
         ZIndex = 2,
-    }, self._panel)
+    }, self._contentGroup)
     self._sidebar = make("Frame", {
         BackgroundColor3 = self.Theme.Surface,
         BorderSizePixel = 0,
@@ -5108,7 +5144,7 @@ function WindowMethods:_build(config)
         Size = UDim2.fromOffset(30, 30),
         Text = "",
         ZIndex = 20,
-    }, self._panel)
+    }, self._contentGroup)
     for index = 1, 3 do
         local mark = make("Frame", {
             AnchorPoint = Vector2.new(0.5, 0.5),
@@ -5239,7 +5275,9 @@ local function createWindow(config)
         _toasts = {},
         _keybinds = {},
         _destroyed = false,
-        _visibilityTarget = true,
+        _visibilityTarget = false,
+        _visibilityTweens = {},
+        _visibilityGeneration = 0,
         _themePreset = matchesThemePreset(theme, DEFAULT_THEME) and "Dark"
             or (matchesThemePreset(theme, LIGHT_THEME) and "Light" or nil),
         _requestedSize = initialSize,
@@ -5260,6 +5298,7 @@ local function createWindow(config)
     }, WindowMethods)
     window.Localization.Locale = window.Localization.Locale or "en"
     window:_build(config)
+    window:SetVisible(true)
     return window
 end
 
