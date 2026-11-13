@@ -6700,13 +6700,14 @@ loadRestoreImage = function(
             local decoder = if imageFormat == "png" then configuredPngDecoder else configuredJpegDecoder
             local decoderUrl = if imageFormat == "png" then pngDecoderUrl else jpegDecoderUrl
             local incompatibleModules = {}
-            if not decoder and script then
+            local scriptInstance = typeof(script) == "Instance" and script or nil
+            if not decoder and scriptInstance then
                 local roots = {}
                 local seenModules = {}
-                if script.Parent then
-                    table.insert(roots, script.Parent)
-                    if script.Parent.Parent then
-                        table.insert(roots, script.Parent.Parent)
+                if scriptInstance.Parent then
+                    table.insert(roots, scriptInstance.Parent)
+                    if scriptInstance.Parent.Parent then
+                        table.insert(roots, scriptInstance.Parent.Parent)
                     end
                 end
                 for _, root in ipairs(roots) do

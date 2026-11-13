@@ -535,6 +535,6 @@ local JPEG = {
 	supportsYieldIfNeeded = true,
 }
 
-if script and script:IsA("ModuleScript") then
+if typeof(script) == "Instance" and script:IsA("ModuleScript") then
 	return JPEG
 end
