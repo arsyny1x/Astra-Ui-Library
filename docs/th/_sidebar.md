@@ -1,7 +1,6 @@
 * [Astra UI](README.md)
 
 **เริ่มต้นใช้งาน**
-- [ติดตั้งและสร้างหน้าต่างแรก](getting-started.md)
 - [เริ่มต้นอย่างรวดเร็ว](quick-start.md)
 - [ภาพรวมส่วนประกอบ](components.md)
 
@@ -12,8 +11,8 @@
 
 **คู่มือ**
 - [ธีมและการปรับแต่ง](themes.md)
+- [ตัวถอดรหัส JPEG](jpeg-images.md)
 - [สถานะและการแปลภาษา](state-and-localization.md)
-- [รูปภาพ PNG](png-images.md)
 - [ตัวอย่างฉบับเต็ม](examples.md)
 - [สคริปต์ Demo](demo.md)
 

@@ -3,8 +3,10 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
 local TextService = game:GetService("TextService")
+local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
+local SHARED_SETTINGS = {}
 local platform = UserInputService:GetPlatform()
 local IS_MOBILE_PLATFORM = platform == Enum.Platform.Android or platform == Enum.Platform.IOS
 local ICON_LIBRARY_URLS = {
@@ -12,8 +14,9 @@ local ICON_LIBRARY_URLS = {
     Solar = "https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/solar/dist/Icons.lua",
 }
 local DEFAULT_PNG_DECODER_URL = "https://raw.githubusercontent.com/arsyny1x/luau-png/refs/heads/main/png.luau"
-local LILITH_BACKGROUND_URL = "https://i.ibb.co/sk4YSdj/0074aa3e1434937e307545db8881065878c16ecc.png"
-local loadRestorePng
+local DEFAULT_JPEG_DECODER_URL = "https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/jpeg.luau"
+local LILITH_BACKGROUND_URL = "https://i.ibb.co/20dLB0dc/0074aa3e1434937e307545db8881065878c16ecc-1.jpg"
+local loadRestoreImage
 
 local function loadIconLibrary(url, name)
     assert(type(loadstring) == "function", "[AstraUI] loadstring is required to load the " .. name .. " icon library")
@@ -61,6 +64,7 @@ local DEFAULT_THEME = {
     Danger = Color3.fromRGB(245, 104, 121),
     CornerRadius = 8,
     Density = "Compact",
+    SurfaceTransparency = 0,
 }
 
 local LIGHT_THEME = {
@@ -80,7 +84,7 @@ local LIGHT_THEME = {
     Border = Color3.fromRGB(191, 202, 216),
     BorderActive = Color3.fromRGB(5, 150, 105),
     TextPrimary = Color3.fromRGB(24, 34, 48),
-    TextSecondary = Color3.fromRGB(77, 91, 109),
+    TextSecondary = Color3.fromRGB(103, 115, 132),
     TextMuted = Color3.fromRGB(112, 126, 145),
     Accent = Color3.fromRGB(99, 102, 241),
     AccentSecondary = Color3.fromRGB(5, 150, 105),
@@ -90,6 +94,7 @@ local LIGHT_THEME = {
     Danger = Color3.fromRGB(210, 55, 75),
     CornerRadius = 8,
     Density = "Compact",
+    SurfaceTransparency = 0,
 }
 
 local LILITH_THEME = {
@@ -109,7 +114,7 @@ local LILITH_THEME = {
     Border = Color3.fromRGB(172, 189, 216),
     BorderActive = Color3.fromRGB(199, 49, 76),
     TextPrimary = Color3.fromRGB(21, 22, 43),
-    TextSecondary = Color3.fromRGB(58, 65, 91),
+    TextSecondary = Color3.fromRGB(88, 99, 123),
     TextMuted = Color3.fromRGB(101, 111, 138),
     Accent = Color3.fromRGB(205, 48, 76),
     AccentSecondary = Color3.fromRGB(91, 139, 197),
@@ -119,7 +124,9 @@ local LILITH_THEME = {
     Danger = Color3.fromRGB(190, 39, 67),
     CornerRadius = 8,
     Density = "Compact",
+    SurfaceTransparency = 0,
 }
+local LILITH_SURFACE_BASE_TRANSPARENCY = 0.12
 
 local THEME_KEYS = {}
 for key in pairs(DEFAULT_THEME) do
@@ -204,12 +211,324 @@ local function clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
 end
 
+local function isKeyCode(value)
+    if typeof(value) ~= "EnumItem" then
+        return false
+    end
+    local enumType = tostring(value.EnumType)
+    return enumType == "Enum.KeyCode" or enumType == "KeyCode"
+end
+
 local function shallowCopy(source)
     local copy = {}
     for key, value in pairs(source or {}) do
         copy[key] = value
     end
     return copy
+end
+
+local function deepCopy(source)
+    if type(source) ~= "table" then
+        return source
+    end
+    local copy = {}
+    for key, value in pairs(source) do
+        copy[key] = deepCopy(value)
+    end
+    return copy
+end
+
+local function readTextFile(path)
+    assert(type(path) == "string" and path ~= "", "File path must be a non-empty string")
+    assert(type(readfile) == "function" and type(isfile) == "function",
+        "File read APIs are unavailable in this environment")
+    if not isfile(path) then
+        return nil
+    end
+    return readfile(path)
+end
+
+local function writeTextFile(path, contents)
+    assert(type(path) == "string" and path ~= "", "File path must be a non-empty string")
+    assert(type(contents) == "string", "File contents must be a string")
+    assert(type(writefile) == "function" and type(makefolder) == "function"
+        and type(isfolder) == "function",
+        "File write APIs are unavailable in this environment")
+    local normalizedPath = string.gsub(path, "\\", "/")
+    local directory = string.match(normalizedPath, "^(.*)/[^/]+$")
+    if directory and directory ~= "" then
+        local current = ""
+        for segment in string.gmatch(directory, "[^/]+") do
+            current = current == "" and segment or current .. "/" .. segment
+            if not isfolder(current) then
+                makefolder(current)
+            end
+        end
+    end
+    writefile(path, contents)
+end
+
+local function colorToHex(color)
+    return string.format("#%02X%02X%02X",
+        math.floor(color.R * 255 + 0.5),
+        math.floor(color.G * 255 + 0.5),
+        math.floor(color.B * 255 + 0.5))
+end
+
+local function colorFromHex(value, name)
+    assert(type(value) == "string" and string.match(value, "^#?%x%x%x%x%x%x$"),
+        name .. " must be a six-digit hex color")
+    local hex = string.gsub(value, "^#", "")
+    return Color3.fromRGB(
+        tonumber(string.sub(hex, 1, 2), 16),
+        tonumber(string.sub(hex, 3, 4), 16),
+        tonumber(string.sub(hex, 5, 6), 16)
+    )
+end
+
+local function normalizeImageAsset(value, name)
+    assert(type(value) == "string", name .. " must be an asset ID or rbxassetid URL")
+    if string.match(value, "^%d+$") then
+        return "rbxassetid://" .. value
+    end
+    assert(string.match(value, "^rbxassetid://%d+$"),
+        name .. " must be a numeric asset ID or rbxassetid:// URL")
+    return value
+end
+
+local function normalizeImageUrl(value, name)
+    assert(type(value) == "string" and string.match(value, "^https?://"),
+        name .. " must be an HTTP(S) PNG or JPEG URL")
+    return value
+end
+
+local function normalizeThemeImage(value, name)
+    if type(value) == "string" and (
+        string.match(value, "^%d+$") or string.match(value, "^rbxassetid://%d+$")
+    ) then
+        return normalizeImageAsset(value, name)
+    end
+    return normalizeImageUrl(value, name)
+end
+
+local function invalidatePngLoad(window, targetImage)
+    window._pngLoadGenerations = window._pngLoadGenerations or {}
+    local generation = (window._pngLoadGenerations[targetImage] or 0) + 1
+    window._pngLoadGenerations[targetImage] = generation
+    if (targetImage == window._customThemePngBackgroundImage
+        or targetImage == window._lilithBackgroundImage) and window._setBackgroundLoading then
+        window:_setBackgroundLoading(targetImage, false)
+    end
+    return generation
+end
+
+local function cacheThemeImage(window, imageUrl, editableImage)
+    window._themeImageCache = window._themeImageCache or {}
+    window._themeImageCacheOrder = window._themeImageCacheOrder or {}
+    local cache = window._themeImageCache
+    local order = window._themeImageCacheOrder
+    local previous = cache[imageUrl]
+    if previous and previous ~= editableImage then
+        previous:Destroy()
+    end
+    cache[imageUrl] = editableImage
+    for index = #order, 1, -1 do
+        if order[index] == imageUrl then
+            table.remove(order, index)
+        end
+    end
+    table.insert(order, imageUrl)
+    while #order > 3 do
+        local expiredUrl = table.remove(order, 1)
+        local expiredImage = cache[expiredUrl]
+        cache[expiredUrl] = nil
+        if expiredImage and expiredImage ~= window._customThemeEditableImage then
+            expiredImage:Destroy()
+        end
+    end
+end
+
+local function encodeTheme(theme)
+    local encoded = {}
+    for key, value in pairs(theme) do
+        if key == "CornerRadius" or key == "Density" or key == "SurfaceTransparency" then
+            encoded[key] = value
+        else
+            encoded[key] = colorToHex(value)
+        end
+    end
+    return encoded
+end
+
+local function decodeTheme(theme, name)
+    assert(type(theme) == "table", name .. " must be a theme object")
+    local decoded = {}
+    for key, value in pairs(theme) do
+        assert(THEME_KEYS[key], name .. " contains unknown theme token: " .. tostring(key))
+        if key == "CornerRadius" then
+            assert(type(value) == "number" and value >= 0 and value <= 32,
+                name .. ".CornerRadius must be between 0 and 32")
+            decoded[key] = value
+        elseif key == "Density" then
+            assert(value == "Compact" or value == "Comfortable",
+                name .. ".Density must be Compact or Comfortable")
+            decoded[key] = value
+        elseif key == "SurfaceTransparency" then
+            assert(type(value) == "number" and value >= 0 and value <= 1,
+                name .. ".SurfaceTransparency must be between 0 and 1")
+            decoded[key] = value
+        else
+            decoded[key] = colorFromHex(value, name .. "." .. key)
+        end
+    end
+    return decoded
+end
+
+local function validateLocales(locales)
+    assert(type(locales) == "table", "Locales must be an object")
+    for locale, definition in pairs(locales) do
+        assert(type(locale) == "string" and locale ~= "", "Locale keys must be non-empty strings")
+        assert(type(definition) == "table", "Locales." .. locale .. " must be an object")
+        assert(definition.Name == nil or type(definition.Name) == "string",
+            "Locales." .. locale .. ".Name must be a string")
+        assert(definition.Translations == nil or type(definition.Translations) == "table",
+            "Locales." .. locale .. ".Translations must be an object")
+        for key, value in pairs(definition.Translations or {}) do
+            assert(type(key) == "string" and type(value) == "string",
+                "Locales." .. locale .. ".Translations must contain string keys and values")
+        end
+    end
+end
+
+local function validateSettingsProfile(profile)
+    assert(type(profile) == "table", "Settings JSON must be an object")
+    assert(profile.Version == 1, "Settings JSON Version must be 1")
+    assert(type(profile.Locale) == "string" and profile.Locale ~= "",
+        "Settings JSON Locale must be a non-empty string")
+    assert(type(profile.Theme) == "string" and profile.Theme ~= "",
+        "Settings JSON Theme must be a non-empty string")
+    assert(type(profile.Locales) == "table", "Settings JSON Locales must be an object")
+    assert(type(profile.CustomThemes) == "table", "Settings JSON CustomThemes must be an object")
+    assert(profile.RemovedLocales == nil or type(profile.RemovedLocales) == "table",
+        "Settings JSON RemovedLocales must be an object")
+    for locale, removed in pairs(profile.RemovedLocales or {}) do
+        assert(type(locale) == "string" and locale ~= "", "RemovedLocales keys must be locale codes")
+        assert(type(removed) == "boolean", "RemovedLocales values must be booleans")
+    end
+    validateLocales(profile.Locales)
+    for name, theme in pairs(profile.CustomThemes) do
+        assert(type(name) == "string" and name ~= "", "Custom theme names must be non-empty strings")
+        assert(name ~= "Dark" and name ~= "Light" and name ~= "Lilith",
+            "Custom theme names cannot replace built-in presets")
+        decodeTheme(theme, "CustomThemes." .. name)
+    end
+    assert(profile.ThemeImages == nil or type(profile.ThemeImages) == "table",
+        "Settings JSON ThemeImages must be an object")
+    for name, image in pairs(profile.ThemeImages or {}) do
+        assert(type(name) == "string" and name ~= "", "ThemeImages keys must be theme names")
+        normalizeThemeImage(image, "ThemeImages." .. name)
+    end
+    assert(profile.ToggleKey == nil or type(profile.ToggleKey) == "string",
+        "Settings JSON ToggleKey must be a string or null")
+    if profile.ToggleKey ~= nil then
+        assert(isKeyCode(Enum.KeyCode[profile.ToggleKey]),
+            "Settings JSON ToggleKey is not a valid KeyCode")
+    end
+    assert(profile.Resizable == nil or type(profile.Resizable) == "boolean",
+        "Settings JSON Resizable must be a boolean")
+    assert(profile.Draggable == nil or type(profile.Draggable) == "boolean",
+        "Settings JSON Draggable must be a boolean")
+    local localeExists = profile.Locales[profile.Locale] ~= nil
+        or string.sub(profile.Locale, 1, 2) == "en"
+        or string.sub(profile.Locale, 1, 2) == "th"
+    assert(localeExists, "Settings JSON Locale must exist in Locales")
+    if profile.Theme ~= "Dark" and profile.Theme ~= "Light" and profile.Theme ~= "Lilith" then
+        assert(profile.CustomThemes[profile.Theme] ~= nil,
+            "Settings JSON Theme must be a built-in preset or a key in CustomThemes")
+    end
+end
+
+local function settingsProfileDefaults(window)
+    local themes = {}
+    if window._customThemes then
+        for name, theme in pairs(window._customThemes) do
+            themes[name] = encodeTheme(theme)
+        end
+    end
+    local locales = deepCopy(window.Localization.Locales or {})
+    if locales[window.Localization.Locale] == nil then
+        locales[window.Localization.Locale] = {
+            Name = window.Localization.Locale,
+            Translations = {},
+        }
+    end
+    local themeImages = deepCopy(window._customThemeImages or {})
+    return {
+        Version = 1,
+        Locale = window.Localization.Locale,
+        Theme = window._settingsThemeName or window._themePreset or "Lilith",
+        CustomThemes = themes,
+        ThemeImages = themeImages,
+        Locales = locales,
+        RemovedLocales = {},
+        ToggleKey = window._toggleKey and window._toggleKey.Name or nil,
+        Resizable = window.Resizable,
+        Draggable = window._draggable,
+    }
+end
+
+local function prettyJson(json)
+    local output = {}
+    local containers = {}
+    local depth = 0
+    local inString = false
+    local escaped = false
+    local function addIndent()
+        table.insert(output, "\n" .. string.rep("  ", depth))
+    end
+    for index = 1, #json do
+        local character = string.sub(json, index, index)
+        if inString then
+            table.insert(output, character)
+            if escaped then
+                escaped = false
+            elseif character == "\\" then
+                escaped = true
+            elseif character == '"' then
+                inString = false
+            end
+        elseif character == '"' then
+            inString = true
+            table.insert(output, character)
+        elseif character == "{" or character == "[" then
+            table.insert(output, character)
+            depth = depth + 1
+            local closing = character == "{" and "}" or "]"
+            local nextIndex = index + 1
+            while nextIndex <= #json and string.match(string.sub(json, nextIndex, nextIndex), "%s") do
+                nextIndex = nextIndex + 1
+            end
+            local hasItems = string.sub(json, nextIndex, nextIndex) ~= closing
+            containers[#containers + 1] = hasItems
+            if hasItems then
+                addIndent()
+            end
+        elseif character == "}" or character == "]" then
+            depth = depth - 1
+            if table.remove(containers) then
+                addIndent()
+            end
+            table.insert(output, character)
+        elseif character == "," then
+            table.insert(output, character)
+            addIndent()
+        elseif character == ":" then
+            table.insert(output, ": ")
+        elseif not string.match(character, "%s") then
+            table.insert(output, character)
+        end
+    end
+    return table.concat(output)
 end
 
 local function safeString(value)
@@ -254,14 +573,6 @@ local function validConfig(config, method)
     assert(type(config) == "table", method .. " expects a config table")
 end
 
-local function isKeyCode(value)
-    if typeof(value) ~= "EnumItem" then
-        return false
-    end
-    local enumType = tostring(value.EnumType)
-    return enumType == "Enum.KeyCode" or enumType == "KeyCode"
-end
-
 local WindowMethods = {}
 WindowMethods.__index = WindowMethods
 local TabMethods = {}
@@ -270,6 +581,9 @@ local SectionMethods = {}
 SectionMethods.__index = SectionMethods
 local ControlMethods = {}
 ControlMethods.__index = ControlMethods
+local ConsoleMethods = {}
+ConsoleMethods.__index = ConsoleMethods
+setmetatable(ConsoleMethods, {__index = ControlMethods})
 local SearchMethods = {}
 SearchMethods.__index = SearchMethods
 
@@ -278,6 +592,38 @@ function WindowMethods:_connect(signal, callback, owner)
     local list = owner and owner._connections or self._connections
     table.insert(list, connection)
     return connection
+end
+
+function WindowMethods:_trackThemeSurface(object)
+    self._surfaceTransparencyTargets = self._surfaceTransparencyTargets or {}
+    for _, target in ipairs(self._surfaceTransparencyTargets) do
+        if target.Object == object then
+            return target
+        end
+    end
+    local target = {
+        Object = object,
+        DefaultTransparency = object.BackgroundTransparency,
+        LilithTransparency = nil,
+    }
+    table.insert(self._surfaceTransparencyTargets, target)
+    local baseTransparency = self._themePreset == "Lilith" and target.LilithTransparency
+        or target.DefaultTransparency
+    local transparency = clamp(self.Theme.SurfaceTransparency or 0, 0, 1)
+    object.BackgroundTransparency = baseTransparency + (1 - baseTransparency) * transparency
+    return target
+end
+
+function WindowMethods:_setBackgroundLoading(targetImage, loading)
+    self._backgroundLoadingSources = self._backgroundLoadingSources or {}
+    if targetImage then
+        self._backgroundLoadingSources[targetImage] = loading and true or nil
+    end
+    local isLoading = next(self._backgroundLoadingSources) ~= nil
+    local indicator = self._backgroundLoadingIndicator
+    if indicator then
+        indicator.Visible = isLoading
+    end
 end
 
 function WindowMethods:_trackTheme(object, propertyOrRole, property)
@@ -318,19 +664,26 @@ function WindowMethods:_trackLilithSurface(object, transparency)
     if not object then
         return
     end
-    self._lilithSurfaceTargets = self._lilithSurfaceTargets or {}
-    table.insert(self._lilithSurfaceTargets, {
-        Object = object,
-        Transparency = transparency,
-    })
-    object.BackgroundTransparency = self._themePreset == "Lilith" and transparency or 0
+    local target = self:_trackThemeSurface(object)
+    target.LilithTransparency = transparency
+    self:_applyLilithSurfaceMode()
 end
 
 function WindowMethods:_applyLilithSurfaceMode()
     local active = self._themePreset == "Lilith"
-    for _, target in ipairs(self._lilithSurfaceTargets or {}) do
+    local imageReady = self._lilithImageLoadState == "loaded"
+    local transparency = clamp(self.Theme.SurfaceTransparency or 0, 0, 1)
+    if active and not imageReady then
+        transparency = 0
+    end
+    for _, target in ipairs(self._surfaceTransparencyTargets or {}) do
         if target.Object and target.Object.Parent then
-            target.Object.BackgroundTransparency = active and target.Transparency or 0
+            local baseTransparency = target.DefaultTransparency
+            if active then
+                baseTransparency = imageReady and target.LilithTransparency or 0
+            end
+            target.Object.BackgroundTransparency = baseTransparency
+                + (1 - baseTransparency) * transparency
         end
     end
 end
@@ -367,6 +720,39 @@ function WindowMethods:_trackTextColor(object, color)
     self:_trackColor(object, color, "TextColor3")
 end
 
+local DISCORD_TEXT = {
+    en = {
+        button = "Copy Discord invite",
+        ["url_missing.title"] = "Discord link not configured",
+        ["url_missing.content"] = "Set Discord.Url in CreateWindow to configure this button.",
+        ["copy_missing.title"] = "Clipboard not configured",
+        ["copy_missing.content"] = "Provide Discord.Copy to copy the invite.",
+        ["copy_failed.title"] = "Could not copy Discord link",
+        ["copy_failed.content"] = "The configured copy callback failed.",
+        ["copied.title"] = "Discord link copied",
+        ["copied.content"] = "The invite link is ready to paste.",
+    },
+    th = {
+        button = "คัดลอกลิงก์เชิญ Discord",
+        ["url_missing.title"] = "ยังไม่ได้ตั้งค่าลิงก์ Discord",
+        ["url_missing.content"] = "กำหนด Discord.Url ใน CreateWindow เพื่อใช้ปุ่มนี้",
+        ["copy_missing.title"] = "ยังไม่ได้ตั้งค่าการคัดลอก",
+        ["copy_missing.content"] = "กำหนด Discord.Copy เพื่อคัดลอกลิงก์เชิญ",
+        ["copy_failed.title"] = "คัดลอกลิงก์ Discord ไม่สำเร็จ",
+        ["copy_failed.content"] = "ฟังก์ชันคัดลอกที่กำหนดไว้ทำงานไม่สำเร็จ",
+        ["copied.title"] = "คัดลอกลิงก์ Discord แล้ว",
+        ["copied.content"] = "ลิงก์เชิญพร้อมวางแล้ว",
+    },
+}
+
+function WindowMethods:_discordText(key)
+    local locale = self.Localization.Locale
+    local language = type(locale) == "string" and string.lower(string.sub(locale, 1, 2)) == "th"
+        and "th" or "en"
+    local fallback = DISCORD_TEXT[language][key]
+    return self:_resolveText({Key = "discord." .. key, Default = fallback})
+end
+
 function WindowMethods:_resolveText(value)
     local key
     local fallback
@@ -376,6 +762,11 @@ function WindowMethods:_resolveText(value)
     else
         fallback = safeString(value)
         key = fallback
+    end
+    local locale = self.Localization.Locales and self.Localization.Locales[self.Localization.Locale]
+    local translation = locale and locale.Translations and locale.Translations[key]
+    if type(translation) == "string" then
+        fallback = translation
     end
     local resolver = self.Localization.Resolve
     if type(resolver) == "function" then
@@ -387,6 +778,186 @@ function WindowMethods:_resolveText(value)
         end
     end
     return fallback
+end
+
+function WindowMethods:_getSettingsProfile()
+    local profile = settingsProfileDefaults(self)
+    profile.RemovedLocales = deepCopy(self._settingsRemovedLocales or {})
+    return profile
+end
+
+function WindowMethods:_normalizeSettingsProfile(profile)
+    local normalized = deepCopy(profile)
+    normalized.Locales = normalized.Locales or {}
+    normalized.RemovedLocales = normalized.RemovedLocales or {}
+    for locale, definition in pairs(self.Localization.Locales or {}) do
+        if normalized.Locales[locale] == nil and not normalized.RemovedLocales[locale] then
+            normalized.Locales[locale] = deepCopy(definition)
+        end
+    end
+    if normalized.Locales[normalized.Locale] == nil then
+        normalized.Locales[normalized.Locale] = {
+            Name = normalized.Locale,
+            Translations = {},
+        }
+    end
+    normalized.ThemeImages = normalized.ThemeImages or {}
+    return normalized
+end
+
+function WindowMethods:_applyThemeImage(imageAsset)
+    local assetImage = self._customThemeBackgroundImage
+    local pngImage = self._customThemePngBackgroundImage
+    if not assetImage or not pngImage then
+        return
+    end
+    if imageAsset and imageAsset ~= "" then
+        local normalizedImage = normalizeThemeImage(imageAsset, "Theme image")
+        self._lilithBackgroundImage.Visible = false
+        self:_setBackgroundLoading(self._lilithBackgroundImage, false)
+        if string.match(normalizedImage, "^https?://") then
+            assetImage.Visible = false
+            local cachedImage = self._themeImageCache and self._themeImageCache[normalizedImage]
+            if cachedImage then
+                invalidatePngLoad(self, pngImage)
+                self._customThemeEditableImage = cachedImage
+                pngImage.ImageContent = Content.fromObject(cachedImage)
+                pngImage.Visible = true
+                local order = self._themeImageCacheOrder or {}
+                for index = #order, 1, -1 do
+                    if order[index] == normalizedImage then
+                        table.remove(order, index)
+                    end
+                end
+                table.insert(order, normalizedImage)
+                self._themeImageCacheOrder = order
+            else
+                self._customThemeEditableImage = nil
+                pngImage.Visible = false
+                loadRestoreImage(
+                    self,
+                    normalizedImage,
+                    self._pngDecoder,
+                    self._pngDecoderUrl,
+                    pngImage,
+                    self._jpegDecoder,
+                    self._jpegDecoderUrl
+                )
+            end
+        else
+            invalidatePngLoad(self, pngImage)
+            self._customThemeEditableImage = nil
+            pngImage.Visible = false
+            assetImage.Image = normalizedImage
+            assetImage.Visible = true
+        end
+    else
+        invalidatePngLoad(self, pngImage)
+        self._customThemeEditableImage = nil
+        assetImage.Visible = false
+        pngImage.Visible = false
+        self._lilithBackgroundImage.Visible = self._themePreset == "Lilith"
+            and self._lilithImageLoadState == "loaded"
+    end
+end
+
+function WindowMethods:_applySettingsProfile(profile)
+    validateSettingsProfile(profile)
+    profile = self:_normalizeSettingsProfile(profile)
+    validateSettingsProfile(profile)
+    self._settingsRemovedLocales = deepCopy(profile.RemovedLocales)
+    local customThemes = {}
+    for name, theme in pairs(profile.CustomThemes) do
+        customThemes[name] = decodeTheme(theme, "CustomThemes." .. name)
+    end
+    local toggleKey = profile.ToggleKey and Enum.KeyCode[profile.ToggleKey] or nil
+    assert(profile.ToggleKey == nil or isKeyCode(toggleKey), "Settings JSON ToggleKey is not a valid KeyCode")
+    self._applyingSharedSettings = true
+    local ok, err = pcall(function()
+        self.Localization.Locales = deepCopy(profile.Locales)
+        self._customThemes = customThemes
+        self._customThemeImages = deepCopy(profile.ThemeImages)
+        if profile.Theme == "Dark" or profile.Theme == "Light" or profile.Theme == "Lilith" then
+            self:SetThemePreset(profile.Theme)
+        else
+            self._themePreset = nil
+            self:SetTheme(customThemes[profile.Theme])
+        end
+        self._settingsThemeName = profile.Theme
+        self:_applyThemeImage(customThemes[profile.Theme] and self._customThemeImages[profile.Theme] or nil)
+        self:SetLocale(profile.Locale)
+        self:SetToggleKey(toggleKey)
+        if profile.Resizable ~= nil then
+            self:SetResizable(profile.Resizable)
+        end
+        if profile.Draggable ~= nil then
+            self:SetDraggable(profile.Draggable)
+        end
+    end)
+    self._applyingSharedSettings = false
+    if not ok then
+        error(err, 0)
+    end
+    if self._settingsRefreshTheme then
+        self._settingsRefreshTheme()
+    end
+    if self._settingsRefreshLocale then
+        self._settingsRefreshLocale()
+    end
+end
+
+function WindowMethods:_setSharedSettingsProfile(profile, save)
+    validateSettingsProfile(profile)
+    profile = self:_normalizeSettingsProfile(profile)
+    validateSettingsProfile(profile)
+    local encoded = HttpService:JSONEncode(profile)
+    local store = self._settingsStore
+    if not store then
+        self:_applySettingsProfile(profile)
+        return
+    end
+    store.Json = encoded
+    for window in pairs(store.Windows) do
+        if window ~= self and not window._destroyed then
+            local ok, err = pcall(window._applySettingsProfile, window, deepCopy(profile))
+            if not ok then
+                warn("[AstraUI] Failed to sync settings to another window: " .. tostring(err))
+            end
+        end
+    end
+    self:_applySettingsProfile(deepCopy(profile))
+    if save and store.Save then
+        local ok, result, reason = pcall(store.Save, encoded)
+        if not ok or result == false then
+            warn("[AstraUI] Failed to save shared settings: "
+                .. tostring(ok and (reason or "Save callback returned false") or result))
+        end
+    end
+end
+
+function WindowMethods:_syncSharedSettings()
+    if self._applyingSharedSettings or not self._settingsStore then
+        return
+    end
+    local profile = self:_getSettingsProfile()
+    validateSettingsProfile(profile)
+    local encoded = HttpService:JSONEncode(profile)
+    self._settingsStore.Json = encoded
+    for window in pairs(self._settingsStore.Windows) do
+        if window ~= self and not window._destroyed then
+            local ok, err = pcall(window._applySettingsProfile, window, deepCopy(profile))
+            if not ok then
+                warn("[AstraUI] Failed to sync settings to another window: " .. tostring(err))
+            end
+        end
+    end
+    if self._settingsStore.Save then
+        local ok, result, reason = pcall(self._settingsStore.Save, encoded)
+        if not ok or result == false then
+            warn("[AstraUI] Failed to save shared settings: "
+                .. tostring(ok and (reason or "Save callback returned false") or result))
+        end
+    end
 end
 
 function WindowMethods:_text(parent, value, properties)
@@ -835,7 +1406,12 @@ function WindowMethods:_setResponsiveLayout(animateSidebar)
     self._headerVersion.Visible = not narrow and self._headerVersion.Text ~= ""
     self._discordButton.Visible = not narrow
     self._settingsButton.Visible = true
-    self._settingsButton.Position = UDim2.new(1, narrow and -100 or -148, 0, 7)
+    self._headerActionGroup.Position = UDim2.new(1, -8, 0, 6)
+    self._headerActionGroup.Size = UDim2.fromOffset(narrow and 94 or 136, 44)
+    self._settingsButton.Position = UDim2.fromOffset(4, 1)
+    self._discordButton.Position = UDim2.fromOffset(47, 1)
+    self._hideButton.Position = UDim2.fromOffset(narrow and 47 or 90, 1)
+    self._headerActionDividerRight.Visible = not narrow
     if self._settingsPanel then
         self._settingsPanel.AnchorPoint = narrow and Vector2.new(0.5, 0.5) or Vector2.new(1, 0)
         self._settingsPanel.Position = narrow
@@ -850,7 +1426,7 @@ function WindowMethods:_setResponsiveLayout(animateSidebar)
         local searchFrame = self._search._frame
         searchFrame.Parent = narrow and self._drawerList or self._tabList
         searchFrame.Visible = narrow or not sidebarCollapsed
-        searchFrame.Size = UDim2.new(1, 0, 0, 34)
+        searchFrame.Size = UDim2.new(1, -12, 0, 34)
     end
     if narrow then
         self._sidebar.Visible = false
@@ -880,7 +1456,7 @@ function WindowMethods:_setResponsiveLayout(animateSidebar)
         local iconOnly = sidebarCollapsed and not narrow
         tab._nameLabel.Visible = not iconOnly
         tab._button.Visible = not (tab._category and tab._category.Collapsed and not iconOnly)
-        local buttonSize = iconOnly and UDim2.new(1, -10, 0, 46) or UDim2.new(1, -16, 0, 46)
+        local buttonSize = iconOnly and UDim2.new(1, -18, 0, 46) or UDim2.new(1, -24, 0, 46)
         if animateSidebar then
             TweenService:Create(tab._button, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Size = buttonSize,
@@ -933,6 +1509,9 @@ function WindowMethods:_createOverlay()
 end
 
 function WindowMethods:_closeOverlay()
+    if self._settingsModalClose then
+        self._settingsModalClose()
+    end
     if self._overlayOwner then
         for _, connection in ipairs(self._overlayOwner._connections) do
             if connection.Connected then
@@ -950,6 +1529,10 @@ function WindowMethods:_closeOverlay()
     self._capturingToggleKey = false
     self._settingsRefreshLocale = nil
     self._settingsRefreshKeybind = nil
+    self._settingsRefreshTheme = nil
+    self._settingsModal = nil
+    self._settingsModalClose = nil
+    self._settingsModalCleanup = nil
 end
 
 function WindowMethods:_addToast(config)
@@ -1176,6 +1759,23 @@ function WindowMethods:Dialog(config)
     return dialog
 end
 
+function WindowMethods:_applyComponentCorners()
+    local radius = UDim.new(0, self.Theme.CornerRadius)
+    local square = UDim.new(0, 0)
+    if self._headerCorner then
+        self._headerCorner.TopLeftRadius = radius
+        self._headerCorner.TopRightRadius = radius
+        self._headerCorner.BottomLeftRadius = square
+        self._headerCorner.BottomRightRadius = square
+    end
+    if self._sidebarCorner then
+        self._sidebarCorner.TopLeftRadius = square
+        self._sidebarCorner.TopRightRadius = square
+        self._sidebarCorner.BottomLeftRadius = radius
+        self._sidebarCorner.BottomRightRadius = square
+    end
+end
+
 function WindowMethods:SetTheme(theme)
     validConfig(theme, "SetTheme")
     local merged = shallowCopy(self.Theme)
@@ -1186,6 +1786,9 @@ function WindowMethods:SetTheme(theme)
             assert(type(value) == "number" and value >= 0 and value <= 32, "Theme.CornerRadius must be between 0 and 32")
         elseif key == "Density" then
             assert(value == "Compact" or value == "Comfortable", "Theme.Density must be Compact or Comfortable")
+        elseif key == "SurfaceTransparency" then
+            assert(type(value) == "number" and value >= 0 and value <= 1,
+                "Theme.SurfaceTransparency must be between 0 and 1")
         else
             assert(typeof(value) == "Color3", "Theme." .. key .. " must be a Color3")
         end
@@ -1201,10 +1804,12 @@ function WindowMethods:SetTheme(theme)
         self._themePreset = nil
         if self._lilithBackgroundImage then
             self._lilithBackgroundImage.Visible = false
+            self:_setBackgroundLoading(self._lilithBackgroundImage, false)
         end
-        self:_applyLilithSurfaceMode()
     end
     self.Theme = merged
+    self:_applyComponentCorners()
+    self:_applyLilithSurfaceMode()
     for _, target in ipairs(self._themeTargets) do
         local object = target.Object
         if object and object.Parent then
@@ -1253,6 +1858,16 @@ function WindowMethods:SetTheme(theme)
     if self._settingsRefreshTheme then
         self._settingsRefreshTheme()
     end
+    if not self._applyingThemePreset and not self._applyingSharedSettings then
+        self._settingsThemeName = "Custom"
+        self._customThemes = self._customThemes or {}
+        self._customThemes.Custom = shallowCopy(self.Theme)
+        self:_applyThemeImage(self._customThemeImages and self._customThemeImages.Custom)
+        if self._settingsRefreshTheme then
+            self._settingsRefreshTheme()
+        end
+        self:_syncSharedSettings()
+    end
 end
 
 function WindowMethods:SetThemePreset(name)
@@ -1275,23 +1890,46 @@ function WindowMethods:SetThemePreset(name)
         error(err, 0)
     end
     self._themePreset = name
+    self._settingsThemeName = name
+    self:_applyThemeImage(nil)
+    if name ~= "Lilith" then
+        self:_setBackgroundLoading(self._lilithBackgroundImage, false)
+    end
     if self._lilithBackgroundImage then
         self._lilithBackgroundImage.Visible = name == "Lilith" and self._lilithImageLoadState == "loaded"
         self:_applyLilithSurfaceMode()
         if name == "Lilith" and self._lilithImageLoadState ~= "loaded"
             and self._lilithImageLoadState ~= "loading" then
             self._lilithImageLoadState = "loading"
-            loadRestorePng(self, LILITH_BACKGROUND_URL, self._pngDecoder, self._pngDecoderUrl, self._lilithBackgroundImage)
+            loadRestoreImage(
+                self,
+                LILITH_BACKGROUND_URL,
+                self._pngDecoder,
+                self._pngDecoderUrl,
+                self._lilithBackgroundImage,
+                self._jpegDecoder,
+                self._jpegDecoderUrl
+            )
         end
     end
     if self._settingsRefreshTheme then
         self._settingsRefreshTheme()
     end
+    if not self._applyingSharedSettings then
+        self:_syncSharedSettings()
+    end
 end
 
 function WindowMethods:SetLocale(locale)
     assert(type(locale) == "string", "SetLocale expects a locale string")
+    self.Localization.Locales = self.Localization.Locales or {}
+    if self.Localization.Locales[locale] == nil then
+        self.Localization.Locales[locale] = {Name = locale, Translations = {}}
+    end
     self.Localization.Locale = locale
+    if self._discordButton then
+        self._discordButton:SetAttribute("AstraLabel", self:_discordText("button"))
+    end
     for _, item in ipairs(self._localized) do
         if item.Object and item.Object.Parent then
             item.Object[item.Property] = self:_resolveText(item.Value)
@@ -1330,6 +1968,9 @@ function WindowMethods:SetLocale(locale)
     if self._settingsRefreshLocale then
         self._settingsRefreshLocale()
     end
+    if not self._applyingSharedSettings then
+        self:_syncSharedSettings()
+    end
 end
 
 function WindowMethods:SetVisible(visible)
@@ -1348,8 +1989,8 @@ function WindowMethods:SetVisible(visible)
     end
     table.clear(self._visibilityTweens)
     if visible and not self._panel.Visible then
-        self._panel.BackgroundTransparency = 1
         self._panelStroke.Transparency = 1
+        self._panelMotionScale.Scale = 0.88
         self._panel.Visible = true
     end
     if self._restoreButton then
@@ -1360,12 +2001,11 @@ function WindowMethods:SetVisible(visible)
         visible and Enum.EasingStyle.Quart or Enum.EasingStyle.Quad,
         visible and Enum.EasingDirection.Out or Enum.EasingDirection.In
     )
-    local transparency = visible and 0 or 1
-    table.insert(self._visibilityTweens, TweenService:Create(self._panel, tweenInfo, {
-        BackgroundTransparency = transparency,
-    }))
     table.insert(self._visibilityTweens, TweenService:Create(self._panelStroke, tweenInfo, {
         Transparency = visible and self._panelStrokeTargetTransparency or 1,
+    }))
+    table.insert(self._visibilityTweens, TweenService:Create(self._panelMotionScale, tweenInfo, {
+        Scale = visible and 1 or 0.88,
     }))
     local remainingTweens = #self._visibilityTweens
     for _, tween in ipairs(self._visibilityTweens) do
@@ -1389,10 +2029,13 @@ function WindowMethods:SetVisible(visible)
 end
 
 function WindowMethods:SetToggleKey(keyCode)
-    assert(isKeyCode(keyCode), "SetToggleKey expects an Enum.KeyCode")
+    assert(keyCode == nil or isKeyCode(keyCode), "SetToggleKey expects an Enum.KeyCode or nil")
     self._toggleKey = keyCode
     if self._settingsRefreshKeybind then
         self._settingsRefreshKeybind()
+    end
+    if not self._applyingSharedSettings then
+        self:_syncSharedSettings()
     end
 end
 
@@ -1405,6 +2048,9 @@ function WindowMethods:SetResizable(resizable)
     if self._settingsRefreshLocale then
         self._settingsRefreshLocale()
     end
+    if not self._applyingSharedSettings then
+        self:_syncSharedSettings()
+    end
 end
 
 function WindowMethods:SetDraggable(draggable)
@@ -1412,6 +2058,9 @@ function WindowMethods:SetDraggable(draggable)
     self._draggable = draggable
     if self._settingsRefreshLocale then
         self._settingsRefreshLocale()
+    end
+    if not self._applyingSharedSettings then
+        self:_syncSharedSettings()
     end
 end
 
@@ -1433,8 +2082,8 @@ function WindowMethods:OpenSettings()
         BorderSizePixel = 0,
         Position = self._narrow and UDim2.fromScale(0.5, 0.5) or UDim2.new(1, -12, 0, 58),
         Size = UDim2.fromOffset(
-            math.max(1, math.min(320, self._panel.AbsoluteSize.X / scale - 24)),
-            math.max(1, math.min(350, self._panel.AbsoluteSize.Y / scale - 24))
+            math.max(1, math.min(420, self._panel.AbsoluteSize.X / scale - 24)),
+            math.max(1, math.min(540, self._panel.AbsoluteSize.Y / scale - 70))
         ),
         ZIndex = 120,
     }, overlay)
@@ -1542,31 +2191,96 @@ function WindowMethods:OpenSettings()
         }, content)
         return row
     end
-    local function addChoice(row, text, callback, widthScale, layoutOrder)
-        local button, stroke = self:_button(row, text, callback, {
+    local function addChoice(row, text, callback, widthScale, layoutOrder, actions)
+        local slot = make("Frame", {
+            BackgroundTransparency = 1,
             Size = UDim2.new(widthScale, -4, 1, 0),
+            ZIndex = 122,
+        }, row)
+        slot.LayoutOrder = layoutOrder
+        local outline = make("Frame", {
+            Active = false,
+            BackgroundColor3 = self.Theme.AccentSecondary,
+            BorderSizePixel = 0,
+            Selectable = false,
+            Size = UDim2.fromScale(1, 1),
+            Visible = false,
+            ZIndex = 122,
+        }, slot)
+        addCorner(outline, 7, self)
+        local button, stroke = self:_button(slot, text, callback, {
+            PaddingLeft = actions and 8 or nil,
+            Size = UDim2.new(1, actions and -62 or -4, 1, -4),
             Height = 34,
-            Radius = 0,
             Role = "SurfaceRaised",
             Stroke = self.Theme.Border,
             StrokeRole = "Border",
             StrokeTransparency = 0.4,
+            TextTruncate = actions and Enum.TextTruncate.AtEnd or nil,
+            TextWrapped = not actions,
+            TextXAlignment = actions and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center,
             TextSize = 11,
             ZIndex = 123,
             Owner = self._overlayOwner,
         })
-        button.LayoutOrder = layoutOrder
+        button.Position = UDim2.fromOffset(2, 2)
         button:SetAttribute("AstraChoiceOption", true)
         button:SetAttribute("AstraChoiceSelected", false)
         stroke.Transparency = 1
-        return button, stroke
+        if actions then
+            local editButton = self:_button(slot, "", actions.Edit, {
+                Height = 24,
+                Owner = self._overlayOwner,
+                Radius = 6,
+                Role = "Surface",
+                Size = UDim2.fromOffset(24, 24),
+                StrokeTransparency = 0.8,
+                TextColor = self.Theme.TextSecondary,
+                TextSize = 10,
+                ZIndex = 123,
+            })
+            editButton.Position = UDim2.new(1, -56, 0.5, -12)
+            editButton:SetAttribute("AstraLabel", self:_resolveText("Edit " .. actions.Kind) .. ": " .. text)
+            self:_icon(editButton, "pencil", {
+                Active = false,
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Selectable = false,
+                Size = UDim2.fromOffset(14, 14),
+                TextColor3 = self.Theme.TextSecondary,
+                TextSize = 14,
+                ZIndex = 124,
+            }, "✎")
+            local deleteButton = self:_button(slot, "", actions.Delete, {
+                Height = 24,
+                Owner = self._overlayOwner,
+                Radius = 6,
+                Role = "Surface",
+                Size = UDim2.fromOffset(24, 24),
+                StrokeTransparency = 0.8,
+                TextColor = self.Theme.Danger,
+                TextSize = 10,
+                ZIndex = 123,
+            })
+            deleteButton.Position = UDim2.new(1, -28, 0.5, -12)
+            deleteButton:SetAttribute("AstraLabel", self:_resolveText("Delete " .. actions.Kind) .. ": " .. text)
+            self:_icon(deleteButton, "trash-2", {
+                Active = false,
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Selectable = false,
+                Size = UDim2.fromOffset(14, 14),
+                TextColor3 = self.Theme.Danger,
+                TextSize = 14,
+                ZIndex = 124,
+            }, "×")
+        end
+        return button, stroke, outline, slot
     end
-    local function setChoiceSelected(button, stroke, selected)
+    local function setChoiceSelected(button, stroke, outline, selected)
         button:SetAttribute("AstraChoiceSelected", selected)
-        local role = selected and "BorderActive" or "Border"
-        self:_trackTheme(button, role, "BorderColor3")
-        button.BorderColor3 = self.Theme[role]
-        button.BorderSizePixel = selected and 1 or 0
+        outline.BackgroundColor3 = self.Theme.AccentSecondary
+        outline.Visible = selected
         stroke.Transparency = 1
         button.TextColor3 = self.Theme.TextPrimary
     end
@@ -1578,63 +2292,1066 @@ function WindowMethods:OpenSettings()
         }, row)
     end
     local function stateWord(enabled)
-        local isThai = string.sub(self.Localization.Locale, 1, 2) == "th"
-        if enabled then
-            return isThai and "เปิด" or "On"
+        return self:_resolveText(enabled and "On" or "Off")
+    end
+
+    local function disconnectOwner(owner)
+        for _, connection in ipairs(owner._connections) do
+            if connection.Connected then
+                connection:Disconnect()
+            end
         end
-        return isThai and "ปิด" or "Off"
+        table.clear(owner._connections)
+    end
+    local function createModal(modalTitle, requestedWidth, requestedHeight)
+        if self._settingsModalClose then
+            self._settingsModalClose()
+        end
+        local shade = make("TextButton", {
+            AutoButtonColor = false,
+            BackgroundColor3 = Color3.new(0, 0, 0),
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Text = "",
+            ZIndex = 140,
+        }, overlay)
+        local modal = make("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = self.Theme.SurfaceRaised,
+            BorderSizePixel = 0,
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(
+                math.max(1, math.min(requestedWidth, self._panel.AbsoluteSize.X / scale - 24)),
+                math.max(1, math.min(requestedHeight, self._panel.AbsoluteSize.Y / scale - 24))
+            ),
+            ZIndex = 150,
+        }, overlay)
+        self:_trackTheme(modal, "SurfaceRaised", "BackgroundColor3")
+        addCorner(modal, 12, self)
+        addStroke(modal, self.Theme.Border, 0.2, self, "Border")
+        local modalScale = make("UIScale", {
+            Scale = 0.9,
+        }, modal)
+        local owner = {_connections = {}}
+        local closed = false
+        local closing = false
+        local closeModal
+        local function destroyModal()
+            if closed then
+                return
+            end
+            closed = true
+            if shade.Parent then
+                shade:Destroy()
+            end
+            if modal.Parent then
+                modal:Destroy()
+            end
+            if self._settingsModal == modal then
+                self._settingsModal = nil
+            end
+            if self._settingsModalClose == closeModal then
+                self._settingsModalClose = nil
+            end
+        end
+        closeModal = function()
+            if closed or closing then
+                return
+            end
+            closing = true
+            if self._settingsModalCleanup then
+                local cleanup = self._settingsModalCleanup
+                self._settingsModalCleanup = nil
+                cleanup()
+            end
+            disconnectOwner(owner)
+            local shrinkTween = TweenService:Create(
+                modalScale,
+                TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+                {Scale = 0.9}
+            )
+            local fadeTween = TweenService:Create(
+                shade,
+                TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+                {BackgroundTransparency = 1}
+            )
+            local completedConnection
+            completedConnection = shrinkTween.Completed:Connect(function()
+                completedConnection:Disconnect()
+                destroyModal()
+            end)
+            shrinkTween:Play()
+            fadeTween:Play()
+        end
+        self._settingsModal = modal
+        self._settingsModalClose = closeModal
+        self:_connect(shade.Activated, closeModal, owner)
+        local modalHeader = make("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 44),
+            ZIndex = 151,
+        }, modal)
+        self:_text(modalHeader, modalTitle, {
+            Position = UDim2.new(0, 16, 0, 0),
+            Size = UDim2.new(1, -60, 1, 0),
+            Font = Enum.Font.GothamBold,
+            TextSize = 14,
+            ZIndex = 152,
+        })
+        local closeButton = self:_button(modalHeader, "×", closeModal, {
+            Height = 30,
+            Owner = owner,
+            Position = UDim2.new(1, -38, 0, 7),
+            Radius = 7,
+            Role = "Surface",
+            Size = UDim2.fromOffset(30, 30),
+            TextSize = 16,
+            ZIndex = 152,
+        })
+        closeButton.Position = UDim2.new(1, -38, 0, 7)
+        TweenService:Create(
+            modalScale,
+            TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Scale = 1}
+        ):Play()
+        TweenService:Create(
+            shade,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {BackgroundTransparency = 0.42}
+        ):Play()
+        return modal, owner, closeModal
+    end
+    local settingsNotice
+    local copySettingsText
+    local function showThemeEditor(themeName)
+        local modalTitle = themeName and "Edit theme" or "Create theme"
+        local modal, owner, closeModal = createModal(modalTitle, 480, 520)
+        local modalWidth = modal.Size.X.Offset
+        local draftPalette = shallowCopy(themeName and self._customThemes[themeName] or self.Theme)
+        local nameInput = make("TextBox", {
+            BackgroundColor3 = self.Theme.ControlSurface,
+            ClearTextOnFocus = false,
+            Font = Enum.Font.Gotham,
+            Position = UDim2.fromOffset(112, 52),
+            Size = UDim2.new(1, -128, 0, 32),
+            Text = themeName or "",
+            TextColor3 = self.Theme.TextPrimary,
+            TextSize = 12,
+            PlaceholderText = self:_resolveText("Theme name"),
+            ZIndex = 152,
+        }, modal)
+        addCorner(nameInput, 6, self)
+        addStroke(nameInput, self.Theme.Border, 0.3, self, "Border")
+        self:_text(modal, "Name", {
+            Position = UDim2.fromOffset(16, 52),
+            Size = UDim2.fromOffset(88, 32),
+            TextSize = 11,
+            ZIndex = 152,
+        })
+        self:_text(modal, "Copy preset", {
+            Position = UDim2.fromOffset(16, 91),
+            Size = UDim2.new(1, -32, 0, 18),
+            TextColor3 = self.Theme.TextMuted,
+            TextSize = 10,
+            ZIndex = 152,
+        })
+        local presetRow = make("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(12, 110),
+            Size = UDim2.new(1, -24, 0, 30),
+            ZIndex = 152,
+        }, modal)
+        layoutRow(presetRow, 5)
+        self:_text(modal, "Background image URL", {
+            Position = UDim2.fromOffset(16, 148),
+            Size = UDim2.new(1, -32, 0, 18),
+            TextColor3 = self.Theme.TextMuted,
+            TextSize = 10,
+            ZIndex = 152,
+        })
+        local imageInput = make("TextBox", {
+            BackgroundColor3 = self.Theme.ControlSurface,
+            ClearTextOnFocus = false,
+            Font = Enum.Font.Gotham,
+            PlaceholderText = self:_resolveText("Image URL or asset ID (optional)"),
+            Position = UDim2.fromOffset(14, 167),
+            Size = UDim2.new(1, -28, 0, 30),
+            Text = themeName and (self._customThemeImages[themeName] or "") or "",
+            TextColor3 = self.Theme.TextPrimary,
+            TextSize = 11,
+            ZIndex = 152,
+        }, modal)
+        addCorner(imageInput, 6, self)
+        addStroke(imageInput, self.Theme.Border, 0.3, self, "Border")
+        self:_text(modal, "Surface transparency", {
+            Position = UDim2.fromOffset(16, 202),
+            Size = UDim2.new(0, 122, 0, 26),
+            TextColor3 = self.Theme.TextMuted,
+            TextSize = 10,
+            ZIndex = 152,
+        })
+        local transparencyTrack = make("TextButton", {
+            AutoButtonColor = false,
+            BackgroundColor3 = self.Theme.ControlTrack,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 142, 0, 212),
+            Size = UDim2.new(1, -230, 0, 8),
+            Text = "",
+            ZIndex = 153,
+        }, modal)
+        self:_trackTheme(transparencyTrack, "ControlTrack", "BackgroundColor3")
+        addCorner(transparencyTrack, 4, self)
+        local transparencyFill = make("Frame", {
+            BackgroundColor3 = self.Theme.AccentSecondary,
+            BorderSizePixel = 0,
+            Size = UDim2.new(0, 0, 1, 0),
+            ZIndex = 154,
+        }, transparencyTrack)
+        self:_trackTheme(transparencyFill, "AccentSecondary", "BackgroundColor3")
+        addCorner(transparencyFill, 4, self)
+        local transparencyKnob = make("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = self.Theme.TextPrimary,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 0, 0.5, 0),
+            Size = UDim2.fromOffset(14, 14),
+            ZIndex = 155,
+        }, transparencyTrack)
+        self:_trackTheme(transparencyKnob, "TextPrimary", "BackgroundColor3")
+        addCorner(transparencyKnob, 7, self)
+        local transparencyValue = self:_text(modal, "0%", {
+            Position = UDim2.new(1, -72, 0, 202),
+            Size = UDim2.fromOffset(52, 26),
+            TextColor3 = self.Theme.TextSecondary,
+            TextSize = 10,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            ZIndex = 152,
+        })
+        local function setSurfaceTransparency(value)
+            local fraction = math.floor(clamp(value, 0, 1) * 100 + 0.5) / 100
+            local knobOffset = 7 - fraction * 14
+            draftPalette.SurfaceTransparency = fraction
+            transparencyFill.Size = UDim2.new(fraction, knobOffset, 1, 0)
+            transparencyKnob.Position = UDim2.new(fraction, knobOffset, 0.5, 0)
+            transparencyValue.Text = string.format("%d%%", math.floor(fraction * 100 + 0.5))
+        end
+        local function updateSurfaceTransparencyFromX(x)
+            local trackWidth = transparencyTrack.AbsoluteSize.X
+            if trackWidth > 0 then
+                setSurfaceTransparency((x - transparencyTrack.AbsolutePosition.X) / trackWidth)
+            end
+        end
+        setSurfaceTransparency(draftPalette.SurfaceTransparency or 0)
+        local transparencyDragging = false
+        self:_connect(transparencyTrack.InputBegan, function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1
+                or input.UserInputType == Enum.UserInputType.Touch then
+                transparencyDragging = true
+                updateSurfaceTransparencyFromX(input.Position.X)
+            end
+        end, owner)
+        self:_connect(UserInputService.InputChanged, function(input)
+            if transparencyDragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+                or input.UserInputType == Enum.UserInputType.Touch) then
+                updateSurfaceTransparencyFromX(input.Position.X)
+            end
+        end, owner)
+        self:_connect(UserInputService.InputEnded, function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1
+                or input.UserInputType == Enum.UserInputType.Touch then
+                transparencyDragging = false
+            end
+        end, owner)
+        self:_text(modal, "Color map", {
+            Position = UDim2.fromOffset(16, 238),
+            Size = UDim2.new(1, -32, 0, 18),
+            TextColor3 = self.Theme.TextMuted,
+            TextSize = 10,
+            ZIndex = 152,
+        })
+        local paletteList = make("ScrollingFrame", {
+            Active = true,
+            BackgroundColor3 = self.Theme.ControlInset,
+            BorderSizePixel = 0,
+            CanvasSize = UDim2.new(0, 0, 0, #THEME_COLOR_ROLE_ORDER * 32),
+            Position = UDim2.fromOffset(14, 258),
+            ScrollBarImageColor3 = self.Theme.AccentSecondary,
+            ScrollBarThickness = 3,
+            Size = UDim2.new(1, -28, 1, -318),
+            ZIndex = 152,
+        }, modal)
+        self:_trackTheme(paletteList, "ControlInset", "BackgroundColor3")
+        self:_trackTheme(paletteList, "AccentSecondary", "ScrollBarImageColor3")
+        addCorner(paletteList, 7, self)
+        addStroke(paletteList, self.Theme.Border, 0.3, self, "Border")
+        local palettePadding = make("UIPadding", {
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            PaddingTop = UDim.new(0, 5),
+        }, paletteList)
+        local paletteLayout = make("UIListLayout", {
+            Padding = UDim.new(0, 2),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        }, paletteList)
+        local paletteRows = {}
+        local palettePopup
+        local paletteOwner
+        local function closeColorMap()
+            if paletteOwner then
+                disconnectOwner(paletteOwner)
+                paletteOwner = nil
+            end
+            if palettePopup and palettePopup.Parent then
+                palettePopup:Destroy()
+            end
+            palettePopup = nil
+        end
+        self._settingsModalCleanup = closeColorMap
+        local function updatePaletteRow(role)
+            local row = paletteRows[role]
+            row.Swatch.BackgroundColor3 = draftPalette[role]
+            row.Hex.Text = colorToHex(draftPalette[role])
+        end
+        local function setDraftColor(role, color)
+            draftPalette[role] = color
+            updatePaletteRow(role)
+        end
+        local function openColorMap(role)
+            closeColorMap()
+            paletteOwner = {_connections = {}}
+            palettePopup = make("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundColor3 = self.Theme.SurfaceRaised,
+                BorderSizePixel = 0,
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.fromOffset(math.min(292, modalWidth - 24), 236),
+                ZIndex = 170,
+            }, modal)
+            self:_trackTheme(palettePopup, "SurfaceRaised", "BackgroundColor3")
+            addCorner(palettePopup, 10, self)
+            addStroke(palettePopup, self.Theme.BorderActive, 0, self, "BorderActive")
+            self:_text(palettePopup, role, {
+                Position = UDim2.fromOffset(12, 8),
+                Size = UDim2.new(1, -24, 0, 20),
+                Font = Enum.Font.GothamBold,
+                TextSize = 12,
+                ZIndex = 171,
+            })
+            local colors = {
+                Color3.fromRGB(255, 255, 255), Color3.fromRGB(220, 228, 239), Color3.fromRGB(156, 171, 193),
+                Color3.fromRGB(103, 120, 146), Color3.fromRGB(24, 34, 48), Color3.fromRGB(11, 14, 23),
+                Color3.fromRGB(255, 89, 94), Color3.fromRGB(245, 104, 121), Color3.fromRGB(217, 119, 6),
+                Color3.fromRGB(255, 202, 58), Color3.fromRGB(138, 201, 38), Color3.fromRGB(16, 185, 129),
+                Color3.fromRGB(25, 130, 196), Color3.fromRGB(59, 66, 159), Color3.fromRGB(99, 102, 241),
+                Color3.fromRGB(129, 130, 255), Color3.fromRGB(155, 93, 229), Color3.fromRGB(205, 48, 76),
+                Color3.fromRGB(91, 139, 197), Color3.fromRGB(30, 34, 70), Color3.fromRGB(17, 22, 37),
+                Color3.fromRGB(242, 246, 250), Color3.fromRGB(225, 233, 246), Color3.fromRGB(21, 22, 43),
+            }
+            for index, color in ipairs(colors) do
+                local column = (index - 1) % 6
+                local line = math.floor((index - 1) / 6)
+                local swatch = make("TextButton", {
+                    AutoButtonColor = false,
+                    BackgroundColor3 = color,
+                    BorderSizePixel = 0,
+                    Position = UDim2.fromOffset(14 + column * 36, 36 + line * 34),
+                    Size = UDim2.fromOffset(28, 26),
+                    Text = "",
+                    ZIndex = 171,
+                }, palettePopup)
+                addCorner(swatch, 5)
+                addStroke(swatch, self.Theme.Border, 0.4, self)
+                self:_connect(swatch.Activated, function()
+                    setDraftColor(role, color)
+                    closeColorMap()
+                end, paletteOwner)
+            end
+            local exactHex = make("TextBox", {
+                BackgroundColor3 = self.Theme.ControlSurface,
+                ClearTextOnFocus = false,
+                Font = Enum.Font.Code,
+                Position = UDim2.fromOffset(14, 178),
+                Size = UDim2.new(1, -90, 0, 32),
+                Text = colorToHex(draftPalette[role]),
+                TextColor3 = self.Theme.TextPrimary,
+                TextSize = 12,
+                ZIndex = 171,
+            }, palettePopup)
+            addCorner(exactHex, 6, self)
+            local applyColor = self:_button(palettePopup, "Apply", function()
+                local ok, color = pcall(colorFromHex, exactHex.Text, role)
+                if ok then
+                    setDraftColor(role, color)
+                    closeColorMap()
+                else
+                    warn("[AstraUI] Invalid theme color: " .. tostring(color))
+                end
+            end, {
+                Height = 32,
+                Owner = paletteOwner,
+                Position = UDim2.new(1, -68, 0, 178),
+                Radius = 6,
+                Role = "AccentSecondary",
+                Size = UDim2.fromOffset(54, 32),
+                TextSize = 10,
+                ZIndex = 171,
+            })
+            applyColor.Position = UDim2.new(1, -68, 0, 178)
+        end
+        for index, role in ipairs(THEME_COLOR_ROLE_ORDER) do
+            local row = make("Frame", {
+                BackgroundTransparency = 1,
+                LayoutOrder = index,
+                Size = UDim2.new(1, 0, 0, 30),
+                ZIndex = 153,
+            }, paletteList)
+            self:_text(row, role, {
+                Position = UDim2.fromOffset(2, 0),
+                Size = UDim2.new(0.4, -4, 1, 0),
+                TextSize = 10,
+                ZIndex = 154,
+            })
+            local swatch = make("TextButton", {
+                AutoButtonColor = false,
+                BackgroundColor3 = draftPalette[role],
+                BorderSizePixel = 0,
+                Position = UDim2.new(0.4, 0, 0.5, -11),
+                Size = UDim2.fromOffset(26, 22),
+                Text = "",
+                ZIndex = 154,
+            }, row)
+            addCorner(swatch, 5)
+            addStroke(swatch, self.Theme.Border, 0.35, self)
+            local hexInput = make("TextBox", {
+                BackgroundColor3 = self.Theme.ControlSurface,
+                ClearTextOnFocus = false,
+                Font = Enum.Font.Code,
+                Position = UDim2.new(0.4, 34, 0.5, -12),
+                Size = UDim2.new(0.6, -40, 0, 24),
+                Text = colorToHex(draftPalette[role]),
+                TextColor3 = self.Theme.TextPrimary,
+                TextSize = 10,
+                ZIndex = 154,
+            }, row)
+            addCorner(hexInput, 5, self)
+            self:_connect(swatch.Activated, function()
+                openColorMap(role)
+            end, owner)
+            self:_connect(hexInput.FocusLost, function()
+                local ok, color = pcall(colorFromHex, hexInput.Text, role)
+                if ok then
+                    setDraftColor(role, color)
+                else
+                    warn("[AstraUI] Invalid theme color: " .. tostring(color))
+                    updatePaletteRow(role)
+                end
+            end, owner)
+            paletteRows[role] = {
+                Swatch = swatch,
+                Hex = hexInput,
+            }
+        end
+        self:_connect(paletteLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+            paletteList.CanvasSize = UDim2.new(0, 0, 0, paletteLayout.AbsoluteContentSize.Y
+                + palettePadding.PaddingTop.Offset)
+        end, owner)
+        local copiedPresetImage
+        for _, preset in ipairs({"Dark", "Light", "Lilith"}) do
+            local presetName = preset
+            local presetButton = self:_button(presetRow, preset, function()
+                local source = presetName == "Dark" and DEFAULT_THEME
+                    or (presetName == "Light" and LIGHT_THEME or LILITH_THEME)
+                draftPalette = shallowCopy(source)
+                for _, role in ipairs(THEME_COLOR_ROLE_ORDER) do
+                    updatePaletteRow(role)
+                end
+                setSurfaceTransparency(draftPalette.SurfaceTransparency or 0)
+                if imageInput.Text == "" or imageInput.Text == copiedPresetImage then
+                    imageInput.Text = presetName == "Lilith" and LILITH_BACKGROUND_URL or ""
+                end
+                copiedPresetImage = presetName == "Lilith" and LILITH_BACKGROUND_URL or nil
+            end, {
+                Height = 30,
+                Owner = owner,
+                Radius = 6,
+                Role = "Surface",
+                Size = UDim2.new(1 / 3, -4, 1, 0),
+                TextSize = 10,
+                ZIndex = 153,
+            })
+            presetButton.LayoutOrder = #presetRow:GetChildren()
+        end
+        local footer = make("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 12, 1, -46),
+            Size = UDim2.new(1, -24, 0, 34),
+            ZIndex = 153,
+        }, modal)
+        layoutRow(footer, 8)
+        local saveTheme = self:_button(footer, themeName and "Save changes" or "Save theme", function()
+            local name = string.gsub(nameInput.Text, "^%s*(.-)%s*$", "%1")
+            local ok, err = pcall(function()
+                assert(name ~= "", "Enter a theme name")
+                assert(name ~= "Custom" and name ~= "Dark" and name ~= "Light" and name ~= "Lilith",
+                    "This name is reserved")
+                assert(not self._customThemes[name] or name == themeName,
+                    "A theme with this name already exists")
+                local profile = self:_getSettingsProfile()
+                local previousName = themeName
+                local wasSelected = previousName and profile.Theme == previousName
+                profile.ThemeImages = profile.ThemeImages or {}
+                if previousName and previousName ~= name then
+                    profile.CustomThemes[previousName] = nil
+                    profile.ThemeImages[previousName] = nil
+                end
+                profile.CustomThemes[name] = encodeTheme(draftPalette)
+                if not previousName or wasSelected then
+                    profile.Theme = name
+                end
+                local image = string.gsub(imageInput.Text, "^%s*(.-)%s*$", "%1")
+                if image == "" then
+                    profile.ThemeImages[name] = nil
+                else
+                    local normalizedOk, normalizedImage = pcall(normalizeThemeImage, image, "Theme image")
+                    assert(normalizedOk, tostring(normalizedImage))
+                    profile.ThemeImages[name] = normalizedImage
+                end
+                self:_setSharedSettingsProfile(profile, true)
+            end)
+            if not ok then
+                warn("[AstraUI] Could not save theme: " .. tostring(err))
+                settingsNotice("Error", "Could not save theme", tostring(err))
+                return
+            end
+            settingsNotice("Success", "Theme saved", name)
+            closeModal()
+        end, {
+            Height = 34,
+            Owner = owner,
+            Role = "AccentSecondary",
+            Size = UDim2.new(0.44, -5, 1, 0),
+            TextSize = 11,
+            ZIndex = 154,
+        })
+        local exportTheme = self:_button(footer, "Export preset", function()
+            local name = string.gsub(nameInput.Text, "^%s*(.-)%s*$", "%1")
+            local ok, err = pcall(function()
+                assert(name ~= "", "Enter a theme name")
+                local preset = {
+                    Name = name,
+                    Theme = encodeTheme(draftPalette),
+                }
+                local image = string.gsub(imageInput.Text, "^%s*(.-)%s*$", "%1")
+                if image ~= "" then
+                    preset.Image = normalizeThemeImage(image, "Theme image")
+                end
+                copySettingsText(prettyJson(HttpService:JSONEncode(preset)))
+            end)
+            if not ok then
+                warn("[AstraUI] Could not export theme preset: " .. tostring(err))
+                settingsNotice("Error", "Export failed", tostring(err))
+                return
+            end
+            settingsNotice("Success", "Preset exported", "Preset JSON copied")
+        end, {
+            Height = 34,
+            Owner = owner,
+            Role = "Surface",
+            Size = UDim2.new(0.32, -5, 1, 0),
+            TextSize = 9,
+            ZIndex = 154,
+        })
+        local cancelTheme = self:_button(footer, "Cancel", closeModal, {
+            Height = 34,
+            Owner = owner,
+            Role = "Surface",
+            Size = UDim2.new(0.23, -5, 1, 0),
+            TextSize = 11,
+            ZIndex = 154,
+        })
+        saveTheme.LayoutOrder = 1
+        exportTheme.LayoutOrder = 2
+        cancelTheme.LayoutOrder = 3
+    end
+
+    settingsNotice = function(kind, titleText, contentText)
+        self:Notify({
+            Type = kind,
+            Title = self:_resolveText(titleText),
+            Content = self:_resolveText(contentText),
+            Duration = 3,
+        })
+    end
+    local function confirmDelete(itemKind, itemName, callback)
+        local titleText = itemKind == "theme" and "Delete theme?" or "Delete language?"
+        local detailText = itemKind == "theme"
+            and "This theme will be permanently deleted."
+            or "This language will be permanently deleted."
+        local modal, owner, closeModal = createModal(titleText, 360, 190)
+        self:_text(modal, self:_resolveText(detailText) .. "\n" .. itemName .. "\n"
+            .. self:_resolveText("This cannot be undone."), {
+            Position = UDim2.fromOffset(16, 54),
+            Size = UDim2.new(1, -32, 0, 68),
+            TextColor3 = self.Theme.TextSecondary,
+            TextSize = 12,
+            TextWrapped = true,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            ZIndex = 152,
+        })
+        local footer = make("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 14, 1, -48),
+            Size = UDim2.new(1, -28, 0, 34),
+            ZIndex = 152,
+        }, modal)
+        layoutRow(footer, 8)
+        local cancelButton = self:_button(footer, "Cancel", closeModal, {
+            Height = 34,
+            Owner = owner,
+            Role = "Surface",
+            Size = UDim2.new(0.5, -4, 1, 0),
+            TextSize = 11,
+            ZIndex = 153,
+        })
+        local deleteButton = self:_button(footer, "Delete", function()
+            local ok, err = pcall(callback)
+            if not ok then
+                warn("[AstraUI] Could not delete " .. itemKind .. ": " .. tostring(err))
+                settingsNotice("Error", "Delete failed", tostring(err))
+                return
+            end
+            closeModal()
+        end, {
+            Height = 34,
+            Owner = owner,
+            Role = "Danger",
+            Size = UDim2.new(0.5, -4, 1, 0),
+            TextSize = 11,
+            ZIndex = 153,
+        })
+        cancelButton.LayoutOrder = 1
+        deleteButton.LayoutOrder = 2
+    end
+    copySettingsText = function(text)
+        local copy = self._settingsAdapter and self._settingsAdapter.Copy
+        if copy then
+            local result, reason = copy(text)
+            assert(result ~= false, tostring(reason or "Clipboard copy failed"))
+        elseif type(setclipboard) == "function" then
+            setclipboard(text)
+        else
+            error("Configure Settings.Copy to enable clipboard copy")
+        end
+    end
+    local function makeLocaleTemplate()
+        local translations = {}
+        for _, item in ipairs(self._localized) do
+            local value = item.Value
+            local key
+            local fallback
+            if type(value) == "table" and value.Key then
+                key = safeString(value.Key)
+                fallback = safeString(value.Default or value.Key)
+            elseif type(value) == "string" then
+                key = value
+                fallback = value
+            end
+            if key and key ~= "" then
+                translations[key] = fallback
+            end
+        end
+        for _, key in ipairs({
+            "Settings", "Color theme", "Language", "UI toggle key", "Window behavior",
+            "Add theme", "Add language", "Resize", "Drag", "On", "Off",
+            "Create theme", "Edit theme", "Delete theme", "Theme name", "Name", "Copy preset",
+            "Background image URL", "Image URL (optional)", "Image URL or asset ID (optional)",
+            "Surface transparency", "Color map", "Save theme", "Export preset",
+            "Preset exported", "Preset JSON copied", "Export failed",
+            "Save changes", "Delete", "Save", "Apply",
+            "Theme saved", "Could not save theme", "Enter a theme name", "This name is reserved",
+            "A theme with this name already exists", "Theme image failed",
+            "Edit language", "Delete language", "Save language", "Delete theme?", "Delete language?",
+            "This theme will be permanently deleted.", "This language will be permanently deleted.",
+            "This cannot be undone.", "Delete failed",
+            "Copy JSON template", "Cancel", "Copied", "JSON configuration copied",
+            "Copy failed", "Invalid JSON", "Language name",
+        }) do
+            translations[key] = translations[key] or key
+        end
+        return {
+            Locale = "xx-XX",
+            Name = "Language name",
+            Translations = translations,
+        }
+    end
+    local function showLocaleEditor(localeCode)
+        assert(localeCode ~= "en-US" and localeCode ~= "th-TH",
+            "Default languages cannot be edited")
+        local localeDefinition = localeCode and self.Localization.Locales[localeCode]
+        assert(not localeCode or localeDefinition, "Locale does not exist")
+        local localeConfig = localeDefinition and {
+            Locale = localeCode,
+            Name = localeDefinition.Name or localeCode,
+            Translations = deepCopy(localeDefinition.Translations or {}),
+        } or makeLocaleTemplate()
+        local modalTitle = localeCode and "Edit language" or "Add language"
+        local modal, owner, closeModal = createModal(modalTitle, 460, 440)
+        local localeEditorScroll = make("ScrollingFrame", {
+            Active = true,
+            AutomaticCanvasSize = Enum.AutomaticSize.None,
+            BackgroundColor3 = self.Theme.ControlInset,
+            BorderSizePixel = 0,
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            ClipsDescendants = true,
+            Position = UDim2.fromOffset(14, 52),
+            ScrollBarImageColor3 = self.Theme.AccentSecondary,
+            ScrollBarThickness = 4,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            Size = UDim2.new(1, -28, 1, -108),
+            ZIndex = 152,
+        }, modal)
+        self:_trackTheme(localeEditorScroll, "ControlInset", "BackgroundColor3")
+        self:_trackTheme(localeEditorScroll, "AccentSecondary", "ScrollBarImageColor3")
+        addCorner(localeEditorScroll, 7, self)
+        addStroke(localeEditorScroll, self.Theme.Border, 0.3, self, "Border")
+        local localeEditor = make("TextBox", {
+            BackgroundTransparency = 1,
+            ClearTextOnFocus = false,
+            Font = Enum.Font.Code,
+            MultiLine = true,
+            Position = UDim2.fromOffset(0, 0),
+            Size = UDim2.new(1, -8, 0, 100),
+            Text = prettyJson(HttpService:JSONEncode(localeConfig)),
+            TextColor3 = self.Theme.TextPrimary,
+            TextSize = 11,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            ZIndex = 153,
+        }, localeEditorScroll)
+        make("UIPadding", {
+            PaddingBottom = UDim.new(0, 7),
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            PaddingTop = UDim.new(0, 7),
+        }, localeEditor)
+        local function updateLocaleEditorSize()
+            local width = math.max(1, localeEditorScroll.AbsoluteSize.X - 28)
+            local textSize = TextService:GetTextSize(
+                localeEditor.Text,
+                localeEditor.TextSize,
+                localeEditor.Font,
+                Vector2.new(width, 100000)
+            )
+            local height = math.max(localeEditorScroll.AbsoluteSize.Y, textSize.Y + 16)
+            localeEditor.Size = UDim2.new(1, -8, 0, height)
+            localeEditorScroll.CanvasSize = UDim2.new(0, 0, 0, height)
+        end
+        self:_connect(localeEditor:GetPropertyChangedSignal("Text"), updateLocaleEditorSize, owner)
+        self:_connect(localeEditorScroll:GetPropertyChangedSignal("AbsoluteSize"), updateLocaleEditorSize, owner)
+        task.defer(updateLocaleEditorSize)
+        local actions = make("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 14, 1, -46),
+            Size = UDim2.new(1, -28, 0, 34),
+            ZIndex = 152,
+        }, modal)
+        layoutRow(actions, 6)
+        local copyButton = self:_button(actions, "Copy JSON template", function()
+            local ok, err = pcall(copySettingsText, localeEditor.Text)
+            if ok then
+                settingsNotice("Success", "Copied", "JSON configuration copied")
+            else
+                warn("[AstraUI] Failed to copy locale JSON: " .. tostring(err))
+                settingsNotice("Error", "Copy failed", tostring(err))
+            end
+        end, {
+            Height = 34,
+            Owner = owner,
+            Role = "Surface",
+            Size = UDim2.new(0.42, -4, 1, 0),
+            TextSize = 9,
+            ZIndex = 153,
+        })
+        local saveButton = self:_button(actions, localeCode and "Save language" or "Add language", function()
+            local ok, err = pcall(function()
+                local localeConfig = HttpService:JSONDecode(localeEditor.Text)
+                assert(type(localeConfig) == "table", "Locale JSON must be an object")
+                assert(type(localeConfig.Locale) == "string" and localeConfig.Locale ~= "",
+                    "Locale must be a non-empty code")
+                assert(type(localeConfig.Name) == "string" and localeConfig.Name ~= "",
+                    "Name must be a non-empty display name")
+                assert(type(localeConfig.Translations) == "table",
+                    "Translations must be an object")
+                assert(localeConfig.Locale ~= "en-US" and localeConfig.Locale ~= "th-TH",
+                    "Default languages cannot be edited")
+                validateLocales({
+                    [localeConfig.Locale] = {
+                        Name = localeConfig.Name,
+                        Translations = localeConfig.Translations,
+                    },
+                })
+                local profile = self:_getSettingsProfile()
+                profile.RemovedLocales = profile.RemovedLocales or {}
+                local wasSelected = localeCode and profile.Locale == localeCode
+                if not localeCode then
+                    assert(profile.Locales[localeConfig.Locale] == nil, "Locale already exists")
+                end
+                if localeCode and localeCode ~= localeConfig.Locale then
+                    assert(profile.Locales[localeConfig.Locale] == nil,
+                        "Locale already exists")
+                    profile.Locales[localeCode] = nil
+                    profile.RemovedLocales[localeCode] = true
+                end
+                profile.RemovedLocales[localeConfig.Locale] = nil
+                profile.Locales[localeConfig.Locale] = {
+                    Name = localeConfig.Name,
+                    Translations = deepCopy(localeConfig.Translations),
+                }
+                if not localeCode or wasSelected then
+                    profile.Locale = localeConfig.Locale
+                end
+                self:_setSharedSettingsProfile(profile, true)
+            end)
+            if ok then
+                closeModal()
+            else
+                warn("[AstraUI] Could not add locale: " .. tostring(err))
+                settingsNotice("Error", "Invalid JSON", tostring(err))
+            end
+        end, {
+            Height = 34,
+            Owner = owner,
+            Role = "AccentSecondary",
+            Size = UDim2.new(0.33, -4, 1, 0),
+            TextSize = 9,
+            ZIndex = 153,
+        })
+        copyButton.LayoutOrder = 1
+        copyButton.Size = UDim2.new(0.5, -3, 1, 0)
+        saveButton.LayoutOrder = 2
+        saveButton.Size = UDim2.new(0.5, -3, 1, 0)
     end
 
     local themeLabel = addLabel("Color theme", "ธีมสี")
-    local themesRow = addRow(36)
-    layoutRow(themesRow)
-    local darkButton, darkStroke
-    local lightButton, lightStroke
-    local lilithButton, lilithStroke
-    darkButton, darkStroke = addChoice(themesRow, "Dark", function()
-        self:SetThemePreset("Dark")
-    end, 1 / 3, 1)
-    lightButton, lightStroke = addChoice(themesRow, "Light", function()
-        self:SetThemePreset("Light")
-    end, 1 / 3, 2)
-    lilithButton, lilithStroke = addChoice(themesRow, "Lilith", function()
-        self:SetThemePreset("Lilith")
-    end, 1 / 3, 3)
+    local themesHost = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        LayoutOrder = order + 1,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 122,
+    }, content)
+    order = order + 1
+    local choiceGridCache = {}
+    local function renderChoiceGrid(host, choices, selected, callback)
+        local signatureParts = {}
+        for _, choice in ipairs(choices) do
+            table.insert(signatureParts, choice.Value .. "\t" .. choice.Label
+                .. "\t" .. (choice.Actions and choice.Actions.Kind or ""))
+        end
+        local signature = table.concat(signatureParts, "\n")
+        local cached = choiceGridCache[host]
+        if cached and cached.Signature == signature then
+            for _, item in ipairs(cached.Items) do
+                setChoiceSelected(item.Button, item.Stroke, item.Outline, item.Value == selected)
+            end
+            return
+        end
+        for _, child in ipairs(host:GetChildren()) do
+            if not child:IsA("UIListLayout") then
+                child:Destroy()
+            end
+        end
+        local gridLayout = host:FindFirstChildOfClass("UIListLayout")
+        if not gridLayout then
+            gridLayout = make("UIListLayout", {
+                Padding = UDim.new(0, 5),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+            }, host)
+        end
+        local items = {}
+        local columns = 2
+        for index = 1, #choices, columns do
+            local row = make("Frame", {
+                BackgroundTransparency = 1,
+                LayoutOrder = math.ceil(index / columns),
+                Size = UDim2.new(1, 0, 0, 34),
+                ZIndex = 122,
+            }, host)
+            layoutRow(row, 6)
+            for offset = 0, columns - 1 do
+                local choice = choices[index + offset]
+                if choice then
+                    local choiceValue = choice.Value
+                    local button, stroke, outline = addChoice(row, choice.Label, function()
+                        callback(choiceValue)
+                    end, 0.5, offset + 1, choice.Actions)
+                    setChoiceSelected(button, stroke, outline, choiceValue == selected)
+                    table.insert(items, {
+                        Value = choiceValue,
+                        Button = button,
+                        Stroke = stroke,
+                        Outline = outline,
+                    })
+                end
+            end
+        end
+        choiceGridCache[host] = {
+            Signature = signature,
+            Items = items,
+        }
+    end
+    local function getSortedNames(map)
+        local names = {}
+        for name in pairs(map or {}) do
+            table.insert(names, name)
+        end
+        table.sort(names)
+        return names
+    end
+    local function deleteTheme(themeName)
+        assert(themeName ~= "Dark" and themeName ~= "Light" and themeName ~= "Lilith"
+            and themeName ~= "Custom", "Default themes cannot be deleted")
+        local profile = self:_getSettingsProfile()
+        assert(profile.CustomThemes[themeName], "Theme does not exist")
+        profile.CustomThemes[themeName] = nil
+        profile.ThemeImages = profile.ThemeImages or {}
+        profile.ThemeImages[themeName] = nil
+        if profile.Theme == themeName then
+            profile.Theme = self._themePreset or "Lilith"
+            if profile.Theme == "Custom" then
+                profile.Theme = "Lilith"
+            end
+        end
+        self:_setSharedSettingsProfile(profile, true)
+    end
+    local function deleteLocale(localeCode)
+        assert(localeCode ~= "en-US" and localeCode ~= "th-TH",
+            "Default languages cannot be deleted")
+        local profile = self:_getSettingsProfile()
+        assert(profile.Locales[localeCode], "Locale does not exist")
+        profile.Locales[localeCode] = nil
+        profile.RemovedLocales = profile.RemovedLocales or {}
+        profile.RemovedLocales[localeCode] = true
+        if profile.Locale == localeCode then
+            profile.Locale = "en-US"
+        end
+        self:_setSharedSettingsProfile(profile, true)
+    end
+    local settingToggleRows = {}
     local function refreshThemeSelection()
-        for _, item in ipairs({
-            {Name = "Dark", Button = darkButton, Stroke = darkStroke},
-            {Name = "Light", Button = lightButton, Stroke = lightStroke},
-            {Name = "Lilith", Button = lilithButton, Stroke = lilithStroke},
-        }) do
-            local selected = self._themePreset == item.Name
-            setChoiceSelected(item.Button, item.Stroke, selected)
+        local choices = {
+            {Label = "Dark", Value = "Dark"},
+            {Label = "Light", Value = "Light"},
+            {Label = "Lilith", Value = "Lilith"},
+        }
+        for _, name in ipairs(getSortedNames(self._customThemes)) do
+            if name ~= "Custom" and name ~= "Dark" and name ~= "Light" and name ~= "Lilith" then
+                local customThemeName = name
+                table.insert(choices, {
+                    Actions = {
+                        Delete = function()
+                            confirmDelete("theme", customThemeName, function()
+                                deleteTheme(customThemeName)
+                            end)
+                        end,
+                        Edit = function()
+                            showThemeEditor(customThemeName)
+                        end,
+                        Kind = "theme",
+                    },
+                    Label = customThemeName,
+                    Value = customThemeName,
+                })
+            end
+        end
+        local selectedTheme = self._settingsThemeName or self._themePreset
+        if selectedTheme == "Custom" and self._customThemes.Custom then
+            for _, preset in ipairs({
+                {Name = "Dark", Theme = DEFAULT_THEME},
+                {Name = "Light", Theme = LIGHT_THEME},
+                {Name = "Lilith", Theme = LILITH_THEME},
+            }) do
+                if matchesThemePreset(self._customThemes.Custom, preset.Theme) then
+                    selectedTheme = preset.Name
+                    break
+                end
+            end
+        end
+        renderChoiceGrid(themesHost, choices, selectedTheme, function(name)
+            if name == "Dark" or name == "Light" or name == "Lilith" then
+                self:SetThemePreset(name)
+            else
+                self._applyingSharedSettings = true
+                self:SetTheme(self._customThemes[name])
+                self._settingsThemeName = name
+                self._applyingSharedSettings = false
+                self:_applyThemeImage(self._customThemeImages and self._customThemeImages[name])
+                self:_settingsRefreshTheme()
+                self:_syncSharedSettings()
+            end
+        end)
+        for _, setting in ipairs(settingToggleRows) do
+            setting.Refresh()
         end
     end
     self._settingsRefreshTheme = refreshThemeSelection
     refreshThemeSelection()
+    local addThemeButton = addChoice(addRow(36), "Add theme", showThemeEditor, 1, 1)
 
     local languageLabel = addLabel("Language", "ภาษา")
-    local languageRow = addRow(34)
-    layoutRow(languageRow)
-    local englishButton, englishStroke = addChoice(languageRow, "English", function()
-        self:SetLocale("en-US")
-    end, 0.5, 1)
-    local thaiButton, thaiStroke = addChoice(languageRow, "ไทย", function()
-        self:SetLocale("th-TH")
-    end, 0.5, 2)
+    local languagesHost = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        LayoutOrder = order + 1,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 122,
+    }, content)
+    order = order + 1
+    local function refreshLocaleChoices()
+        local choices = {}
+        for _, locale in ipairs(getSortedNames(self.Localization.Locales)) do
+            local definition = self.Localization.Locales[locale]
+            local localeName = locale
+            local localeDefinition = definition
+            local actions
+            if localeName ~= "en-US" and localeName ~= "th-TH" then
+                actions = {
+                    Delete = function()
+                        confirmDelete("language", localeDefinition.Name or localeName, function()
+                            deleteLocale(localeName)
+                        end)
+                    end,
+                    Edit = function()
+                        showLocaleEditor(localeName)
+                    end,
+                    Kind = "language",
+                }
+            end
+            table.insert(choices, {
+                Actions = actions,
+                Label = localeDefinition.Name or localeName,
+                Value = localeName,
+            })
+        end
+        renderChoiceGrid(languagesHost, choices, self.Localization.Locale, function(locale)
+            self:SetLocale(locale)
+        end)
+    end
+    local addLanguageButton = addChoice(addRow(36), "Add language", showLocaleEditor, 1, 1)
 
     local keyLabel = addLabel("UI toggle key", "ปุ่มเปิด/ปิด UI")
     local keyButton
     keyButton = addChoice(addRow(36), "", function()
         self._capturingToggleKey = true
-        keyButton.Text = string.sub(self.Localization.Locale, 1, 2) == "th" and "กดปุ่มที่ต้องการ..." or "Press a key..."
+        keyButton.Text = self:_resolveText("Press a key...")
     end, 1, 1)
     local function refreshKeybind()
         if not keyButton.Parent then
             return
         end
         if self._capturingToggleKey then
-            keyButton.Text = string.sub(self.Localization.Locale, 1, 2) == "th" and "กดปุ่มที่ต้องการ..." or "Press a key..."
+            keyButton.Text = self:_resolveText("Press a key...")
         else
             keyButton.Text = self._toggleKey and string.gsub(tostring(self._toggleKey), "^Enum%.KeyCode%.", "") or "None"
         end
@@ -1643,34 +3360,82 @@ function WindowMethods:OpenSettings()
     refreshKeybind()
 
     local behaviorLabel = addLabel("Window behavior", "การทำงานของหน้าต่าง")
-    local behaviorRow = addRow(34)
-    layoutRow(behaviorRow)
-    local resizableButton
-    resizableButton = addChoice(behaviorRow, "", function()
-        self:SetResizable(not self.Resizable)
-        resizableButton.Text = (string.sub(self.Localization.Locale, 1, 2) == "th" and "ปรับขนาด: " or "Resize: ") .. stateWord(self.Resizable)
-    end, 0.5, 1)
-    local draggableButton
-    draggableButton = addChoice(behaviorRow, "", function()
-        self:SetDraggable(not self._draggable)
-        draggableButton.Text = (string.sub(self.Localization.Locale, 1, 2) == "th" and "ลาก: " or "Drag: ") .. stateWord(self._draggable)
-    end, 0.5, 2)
+    local function addSettingToggle(label, initialValue, callback)
+        local row = addRow(38)
+        local labelObject = self:_text(row, label, {
+            Position = UDim2.new(0, 10, 0, 0),
+            Size = UDim2.new(1, -76, 1, 0),
+            TextSize = 11,
+            ZIndex = 123,
+        })
+        local switch = make("TextButton", {
+            AutoButtonColor = false,
+            BackgroundColor3 = self.Theme.ControlTrack,
+            BorderSizePixel = 0,
+            Position = UDim2.new(1, -58, 0.5, -14),
+            Size = UDim2.fromOffset(52, 28),
+            Text = "",
+            ZIndex = 123,
+        }, row)
+        addCorner(switch, 14)
+        local switchStroke = addStroke(switch, self.Theme.ControlBorder, 0.3, self, "ControlBorder")
+        local knob = make("Frame", {
+            BackgroundColor3 = self.Theme.ControlKnob,
+            BorderSizePixel = 0,
+            Position = UDim2.fromOffset(3, 3),
+            Size = UDim2.fromOffset(22, 22),
+            ZIndex = 124,
+        }, switch)
+        addCorner(knob, 11)
+        self:_trackTheme(knob, "ControlKnob", "BackgroundColor3")
+        local setting = {
+            Label = labelObject,
+            Switch = switch,
+            Stroke = switchStroke,
+            Knob = knob,
+            Value = initialValue,
+            Callback = callback,
+        }
+        local function refresh()
+            local enabled = setting.Value
+            switch.BackgroundColor3 = enabled and self.Theme.AccentSecondary or self.Theme.ControlTrack
+            switchStroke.Color = enabled and self.Theme.AccentSecondary or self.Theme.ControlBorder
+            knob.Position = enabled and UDim2.new(1, -25, 0, 3) or UDim2.fromOffset(3, 3)
+            labelObject.Text = self:_resolveText(label) .. ": " .. stateWord(enabled)
+        end
+        setting.Refresh = refresh
+        self:_connect(switch.Activated, function()
+            setting.Callback(not setting.Value)
+        end, self._overlayOwner)
+        table.insert(settingToggleRows, setting)
+        refresh()
+    end
+    addSettingToggle("Resize", self.Resizable, function(value)
+        self:SetResizable(value)
+    end)
+    addSettingToggle("Drag", self._draggable, function(value)
+        self:SetDraggable(value)
+    end)
 
     local function refreshLocale()
         if not panel.Parent then
             return
         end
-        local isThai = string.sub(self.Localization.Locale, 1, 2) == "th"
-        title.Text = isThai and "ตั้งค่า" or "Settings"
-        themeLabel.Text = isThai and themeLabel:GetAttribute("ThaiText") or themeLabel:GetAttribute("EnglishText")
-        languageLabel.Text = isThai and languageLabel:GetAttribute("ThaiText") or languageLabel:GetAttribute("EnglishText")
-        keyLabel.Text = isThai and keyLabel:GetAttribute("ThaiText") or keyLabel:GetAttribute("EnglishText")
-        behaviorLabel.Text = isThai and behaviorLabel:GetAttribute("ThaiText") or behaviorLabel:GetAttribute("EnglishText")
-        resizableButton.Text = (isThai and "ปรับขนาด: " or "Resize: ") .. stateWord(self.Resizable)
-        draggableButton.Text = (isThai and "ลาก: " or "Drag: ") .. stateWord(self._draggable)
+        title.Text = self:_resolveText("Settings")
+        themeLabel.Text = self:_resolveText("Color theme")
+        languageLabel.Text = self:_resolveText("Language")
+        keyLabel.Text = self:_resolveText("UI toggle key")
+        behaviorLabel.Text = self:_resolveText("Window behavior")
+        addThemeButton.Text = self:_resolveText("Add theme")
+        addLanguageButton.Text = self:_resolveText("Add language")
+        settingToggleRows[1].Value = self.Resizable
+        settingToggleRows[2].Value = self._draggable
+        for _, setting in ipairs(settingToggleRows) do
+            setting.Refresh()
+        end
         refreshKeybind()
-        setChoiceSelected(englishButton, englishStroke, not isThai)
-        setChoiceSelected(thaiButton, thaiStroke, isThai)
+        refreshThemeSelection()
+        refreshLocaleChoices()
     end
     self._settingsRefreshLocale = refreshLocale
     refreshLocale()
@@ -1685,6 +3450,9 @@ function WindowMethods:OpenSettings()
 
     self:_connect(overlay.InputBegan, function(input)
         if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        if self._settingsModal then
             return
         end
         local position = input.Position
@@ -1879,6 +3647,88 @@ function WindowMethods:SetState(state)
     end
 end
 
+function WindowMethods:SaveStateToFile(path)
+    path = path or (self._statePersistence and self._statePersistence.Path)
+    assert(type(path) == "string" and path ~= "", "SaveStateToFile requires a file path")
+    local ok, err = pcall(function()
+        local encoded = HttpService:JSONEncode(self:GetState())
+        writeTextFile(path, encoded)
+        self._stateFileSnapshot = encoded
+    end)
+    if not ok then
+        return false, tostring(err)
+    end
+    return true
+end
+
+function WindowMethods:LoadStateFromFile(path)
+    path = path or (self._statePersistence and self._statePersistence.Path)
+    assert(type(path) == "string" and path ~= "", "LoadStateFromFile requires a file path")
+    local readOk, contents = pcall(readTextFile, path)
+    if not readOk then
+        return false, tostring(contents)
+    end
+    if contents == nil then
+        return false, nil
+    end
+    local ok, err = pcall(function()
+        local state = HttpService:JSONDecode(contents)
+        assert(type(state) == "table" and type(state.Values) == "table",
+            "Saved state file has an invalid format")
+        self:SetState(state)
+        self._stateFileSnapshot = HttpService:JSONEncode(self:GetState())
+    end)
+    if not ok then
+        return false, tostring(err)
+    end
+    return true
+end
+
+function WindowMethods:StartStateAutoSave(interval)
+    local persistence = self._statePersistence or {}
+    local path = persistence.Path
+    assert(type(path) == "string" and path ~= "", "StatePersistence.Path is required for autosave")
+    interval = interval or persistence.AutoSaveInterval or 1
+    assert(type(interval) == "number" and interval > 0,
+        "StartStateAutoSave interval must be a positive number")
+    if type(writefile) ~= "function" or type(makefolder) ~= "function"
+        or type(isfolder) ~= "function" then
+        return false, "File write APIs are unavailable in this environment"
+    end
+    local ok, snapshot = pcall(function()
+        return HttpService:JSONEncode(self:GetState())
+    end)
+    if not ok then
+        return false, tostring(snapshot)
+    end
+    self._stateFileSnapshot = self._stateFileSnapshot or snapshot
+    self._stateAutoSaveGeneration = (self._stateAutoSaveGeneration or 0) + 1
+    local generation = self._stateAutoSaveGeneration
+    task.spawn(function()
+        while not self._destroyed and self._stateAutoSaveGeneration == generation do
+            task.wait(interval)
+            if self._destroyed or self._stateAutoSaveGeneration ~= generation then
+                break
+            end
+            local encodeOk, current = pcall(function()
+                return HttpService:JSONEncode(self:GetState())
+            end)
+            if not encodeOk then
+                warn("[AstraUI] State autosave stopped: " .. tostring(current))
+                break
+            end
+            if current ~= self._stateFileSnapshot then
+                local saved, saveError = self:SaveStateToFile(path)
+                if not saved then
+                    warn("[AstraUI] State autosave stopped: " .. tostring(saveError))
+                    break
+                end
+            end
+        end
+    end)
+    return true
+end
+
 function WindowMethods:_onInputBegan(input, processed)
     if self._capturingToggleKey and input.UserInputType == Enum.UserInputType.Keyboard then
         if input.KeyCode == Enum.KeyCode.Escape then
@@ -1920,6 +3770,12 @@ function WindowMethods:Destroy()
         return
     end
     self._destroyed = true
+    self._stateAutoSaveGeneration = (self._stateAutoSaveGeneration or 0) + 1
+    self:_setBackgroundLoading(self._customThemePngBackgroundImage, false)
+    self:_setBackgroundLoading(self._lilithBackgroundImage, false)
+    if self._settingsStore then
+        self._settingsStore.Windows[self] = nil
+    end
     while #self._toasts > 0 do
         self._toasts[1]:Dismiss()
     end
@@ -1950,6 +3806,12 @@ function WindowMethods:Destroy()
         self._lilithEditableImage:Destroy()
         self._lilithEditableImage = nil
     end
+    for _, editableImage in pairs(self._themeImageCache or {}) do
+        editableImage:Destroy()
+    end
+    self._themeImageCache = {}
+    self._themeImageCacheOrder = {}
+    self._customThemeEditableImage = nil
     if self._screenGui then
         self._screenGui:Destroy()
     end
@@ -1971,7 +3833,7 @@ function WindowMethods:Tab(config)
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
                 LayoutOrder = self._tabNavOrder,
-                Size = UDim2.new(1, -16, 0, 30),
+                Size = UDim2.new(1, -24, 0, 30),
                 Text = "",
                 ZIndex = 5,
             }, self._tabList)
@@ -2044,7 +3906,7 @@ function WindowMethods:Tab(config)
         BackgroundColor3 = self.Theme.Surface,
         BorderSizePixel = 0,
         LayoutOrder = self._tabNavOrder,
-        Size = UDim2.new(1, -16, 0, 46),
+        Size = UDim2.new(1, -24, 0, 46),
         Text = "",
         ZIndex = 5,
     }, self._tabList)
@@ -2138,7 +4000,7 @@ local function createSection(window, parent, config, ownerTab)
     addCorner(card, 6, window, true)
     addStroke(card, window.Theme.Border, 0, window)
     window:_trackTheme(card, "StateSurface", "BackgroundColor3")
-    window:_trackLilithSurface(card, 0.22)
+    window:_trackLilithSurface(card, LILITH_SURFACE_BASE_TRANSPARENCY)
     make("UIPadding", {
         PaddingBottom = UDim.new(0, 11),
         PaddingLeft = UDim.new(0, 12),
@@ -2288,7 +4150,7 @@ function SectionMethods:_row(config, kind)
         ZIndex = 5,
     }, self._list)
     window:_trackTheme(row, "StateSurface", "BackgroundColor3")
-    window:_trackLilithSurface(row, 0.24)
+    window:_trackLilithSurface(row, LILITH_SURFACE_BASE_TRANSPARENCY)
     addCorner(row, 6, window, true)
     addStroke(row, window.Theme.Border, 0, window)
     make("UIPadding", {
@@ -3726,8 +5588,28 @@ function SectionMethods:Paragraph(config)
             ZIndex = 6,
         })
     end
-    local content = window:_text(frame, config.Content, {
+    local contentFrame = make("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = window.Theme.StateSurface,
+        BorderSizePixel = 0,
         Position = UDim2.new(0, 0, 0, config.Title and 24 or 0),
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 5,
+    }, frame)
+    window:_trackTheme(contentFrame, "StateSurface", "BackgroundColor3")
+    addCorner(contentFrame, 6, window)
+    addStroke(contentFrame, window.Theme.Border, 0.4, window)
+    make("UIPadding", {
+        PaddingBottom = UDim.new(0, 8),
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+        PaddingTop = UDim.new(0, 8),
+    }, contentFrame)
+    make("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, contentFrame)
+    local content = window:_text(contentFrame, config.Content, {
+        LayoutOrder = 1,
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         TextColor3 = window.Theme.TextSecondary,
@@ -3752,6 +5634,136 @@ function SectionMethods:Paragraph(config)
         end,
     })
     return item
+end
+
+local CONSOLE_SEVERITY_ROLES = {
+    info = "TextSecondary",
+    success = "Success",
+    warning = "Warning",
+    error = "Danger",
+}
+
+local function removeConsoleEntry(console, index)
+    local entry = table.remove(console._entries, index)
+    if not entry then
+        return
+    end
+    local themeTargets = console._window._themeTargets
+    for targetIndex = #themeTargets, 1, -1 do
+        if themeTargets[targetIndex].Object == entry then
+            table.remove(themeTargets, targetIndex)
+        end
+    end
+    entry:Destroy()
+end
+
+function ConsoleMethods:Log(message, level)
+    assert(not self._destroyed, "Cannot write to a destroyed Console")
+    assert(message ~= nil, "Console:Log requires a message")
+    level = level or "Info"
+    assert(type(level) == "string", "Console:Log level must be a string")
+    local normalizedLevel = string.lower(level)
+    local themeRole = CONSOLE_SEVERITY_ROLES[normalizedLevel]
+    assert(themeRole, "Console:Log level must be Info, Success, Warning, or Error")
+
+    local window = self._window
+    local entry = make("TextLabel", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Code,
+        LayoutOrder = #self._entries + 1,
+        Size = UDim2.new(1, -12, 0, 0),
+        Text = "[" .. string.upper(normalizedLevel) .. "] " .. safeString(message),
+        TextColor3 = window.Theme[themeRole],
+        TextSize = 12,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 8,
+    }, self._scroll)
+    window:_trackTheme(entry, themeRole, "TextColor3")
+    table.insert(self._entries, entry)
+    while #self._entries > self._maxEntries do
+        removeConsoleEntry(self, 1)
+    end
+
+    local scroll = self._scroll
+    task.defer(function()
+        if not self._destroyed and scroll.Parent then
+            local maxY = math.max(0, scroll.AbsoluteCanvasSize.Y - scroll.AbsoluteSize.Y)
+            scroll.CanvasPosition = Vector2.new(0, maxY)
+        end
+    end)
+    return self
+end
+
+function ConsoleMethods:Clear()
+    for index = #self._entries, 1, -1 do
+        removeConsoleEntry(self, index)
+    end
+    if self._scroll and self._scroll.Parent then
+        self._scroll.CanvasPosition = Vector2.zero
+    end
+    return self
+end
+
+function ConsoleMethods:Destroy()
+    if self._destroyed then
+        return
+    end
+    self:Clear()
+    ControlMethods.Destroy(self)
+end
+
+function SectionMethods:Console(config)
+    config = config or {}
+    validConfig(config, "Console")
+    assert(config.Height == nil or (type(config.Height) == "number" and config.Height > 0 and config.Height < math.huge), "Console.Height must be a positive number")
+    assert(config.MaxEntries == nil or (type(config.MaxEntries) == "number" and config.MaxEntries >= 1 and config.MaxEntries < math.huge and config.MaxEntries == math.floor(config.MaxEntries)), "Console.MaxEntries must be a positive integer")
+
+    local component = self:_row(config, "Console")
+    setmetatable(component, ConsoleMethods)
+    component._entries = {}
+    component._maxEntries = config.MaxEntries or 100
+
+    local window = self._window
+    local panel = make("Frame", {
+        BackgroundColor3 = window.Theme.ControlInset,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, config.Height or 160),
+        ZIndex = 7,
+    }, component._body)
+    window:_trackTheme(panel, "ControlInset", "BackgroundColor3")
+    addCorner(panel, 7, window)
+    addStroke(panel, window.Theme.Border, 0.25, window)
+
+    component._scroll = make("ScrollingFrame", {
+        Active = true,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = window.Theme.StateSurface,
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.fromOffset(8, 8),
+        ScrollBarImageColor3 = window.Theme.AccentSecondary,
+        ScrollBarThickness = 3,
+        Size = UDim2.new(1, -16, 1, -16),
+        ZIndex = 7,
+    }, panel)
+    window:_trackTheme(component._scroll, "StateSurface", "BackgroundColor3")
+    window:_trackTheme(component._scroll, "AccentSecondary", "ScrollBarImageColor3")
+    addCorner(component._scroll, 5, window)
+    addStroke(component._scroll, window.Theme.Border, 0.4, window)
+    make("UIPadding", {
+        PaddingBottom = UDim.new(0, 7),
+        PaddingLeft = UDim.new(0, 9),
+        PaddingRight = UDim.new(0, 9),
+        PaddingTop = UDim.new(0, 7),
+    }, component._scroll)
+    make("UIListLayout", {
+        Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, component._scroll)
+    return component
 end
 
 function SectionMethods:Divider(config)
@@ -3850,7 +5862,7 @@ function SectionMethods:State(config)
         ZIndex = 5,
     }, self._list)
     window:_trackTheme(frame, "StateSurface", "BackgroundColor3")
-    window:_trackLilithSurface(frame, 0.18)
+    window:_trackLilithSurface(frame, LILITH_SURFACE_BASE_TRANSPARENCY)
     addStroke(frame, window.Theme.Border, 0.3, window, "Border")
     addCorner(frame, 12, window)
     make("UIPadding", {
@@ -4099,7 +6111,7 @@ function TabMethods:Card(config)
         ZIndex = 4,
     }, layoutFrame)
     window:_trackTheme(frame, "StateSurface", "BackgroundColor3")
-    window:_trackLilithSurface(frame, 0.22)
+    window:_trackLilithSurface(frame, LILITH_SURFACE_BASE_TRANSPARENCY)
     addCorner(frame, 6, window, true)
     addStroke(frame, window.Theme.Border, 0, window, "Border")
     local accentRole = (config.Accent == "Green" or config.Accent == "Cyan") and "AccentSecondary" or (config.Accent == "None" and "Border" or "Accent")
@@ -4216,18 +6228,20 @@ function SectionMethods:Accordion(config, build)
     local headerStroke
     local headerIcon
     local updateHeaderStroke
+    local updateHeaderStyle
     local header, stroke = window:_button(frame, "", function()
         isExpanded = not isExpanded
         content.Visible = isExpanded
-        updateHeaderStroke()
-        headerStroke.Transparency = isExpanded and 0.25 or 0.55
-        headerIcon.Rotation = isExpanded and 90 or 0
+        updateHeaderStyle()
     end, {
         Height = 42,
-        Role = "SurfaceRaised",
+        Role = "Surface",
+        HoverRole = "SurfaceHover",
+        StrokeRole = "Border",
         Radius = 8,
         Stroke = isExpanded and window.Theme.BorderActive or window.Theme.Border,
-        StrokeTransparency = isExpanded and 0.25 or 0.55,
+        StrokeTransparency = isExpanded and 0.15 or 0.35,
+        HoverStrokeTransparency = 0.18,
         ZIndex = 6,
     })
     header.LayoutOrder = 1
@@ -4245,15 +6259,21 @@ function SectionMethods:Accordion(config, build)
         TextSize = 13,
         ZIndex = header.ZIndex + 1,
     })
-    headerIcon = window:_icon(header, "chevron-right", {
+    headerIcon = window:_icon(header, "chevron-down", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(1, -20, 0.5, 0),
         Size = UDim2.fromOffset(16, 16),
         TextColor3 = window.Theme.TextMuted,
         TextSize = 14,
-        Rotation = isExpanded and 90 or 0,
+        Rotation = isExpanded and 180 or 0,
         ZIndex = header.ZIndex + 1,
-    }, ">")
+    }, "⌄")
+    updateHeaderStyle = function()
+        updateHeaderStroke()
+        headerStroke.Transparency = isExpanded and 0.15 or 0.35
+        headerIcon.Rotation = isExpanded and 180 or 0
+    end
+    updateHeaderStyle()
     if type(config.Name) == "table" and config.Name.Key then
         table.insert(window._localized, {Object = headerLabel, Value = config.Name, Property = "Text"})
     end
@@ -4324,9 +6344,7 @@ function SectionMethods:Accordion(config, build)
             assert(type(expanded) == "boolean", "SetExpanded expects a boolean")
             isExpanded = expanded
             content.Visible = expanded
-            updateHeaderStroke()
-            headerStroke.Transparency = expanded and 0.25 or 0.55
-            headerIcon.Rotation = expanded and 90 or 0
+            updateHeaderStyle()
         end,
         Destroy = function()
             frame:Destroy()
@@ -4402,15 +6420,22 @@ function WindowMethods:Search(config)
         return self._search
     end
     local searchFrame = make("Frame", {
-        BackgroundColor3 = self.Theme.ControlSurface,
-        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
         LayoutOrder = 0,
-        Size = UDim2.new(1, 0, 0, 34),
+        Size = UDim2.new(1, -12, 0, 34),
         ZIndex = 14,
     }, self._tabList)
-    self:_trackTheme(searchFrame, "ControlSurface", "BackgroundColor3")
-    addCorner(searchFrame, 8, self)
-    local searchStroke = addStroke(searchFrame, self.Theme.AccentSecondary, 0.2, self, "AccentSecondary")
+    local searchSurface = make("Frame", {
+        BackgroundColor3 = self.Theme.ControlSurface,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Position = UDim2.fromOffset(1, 1),
+        Size = UDim2.new(1, -2, 1, -2),
+        ZIndex = 14,
+    }, searchFrame)
+    self:_trackTheme(searchSurface, "ControlSurface", "BackgroundColor3")
+    addCorner(searchSurface, 8, self)
+    local searchStroke = addStroke(searchSurface, self.Theme.AccentSecondary, 0.2, self, "AccentSecondary")
     local input = make("TextBox", {
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -4425,13 +6450,13 @@ function WindowMethods:Search(config)
         TextColor3 = self.Theme.TextPrimary,
         TextSize = 13,
         ZIndex = 15,
-    }, searchFrame)
+    }, searchSurface)
     make("UIPadding", {
         PaddingLeft = UDim.new(0, 34),
         PaddingRight = UDim.new(0, 12),
     }, input)
     local iconName = config.Icon or "search"
-    local searchIcon = self:_icon(searchFrame, iconName, {
+    local searchIcon = self:_icon(searchSurface, iconName, {
         Position = UDim2.new(0, 4, 0, 0),
         Size = UDim2.new(0, 22, 1, 0),
         TextColor3 = self.Theme.TextSecondary,
@@ -4594,13 +6619,86 @@ function SearchMethods:_update()
     self._results.Visible = true
 end
 
-loadRestorePng = function(window, imageUrl, configuredDecoder, decoderUrl, targetImage)
+loadRestoreImage = function(
+    window,
+    imageUrl,
+    configuredPngDecoder,
+    pngDecoderUrl,
+    targetImage,
+    configuredJpegDecoder,
+    jpegDecoderUrl
+)
     targetImage = targetImage or window._restoreImageLabel
+    local generation = invalidatePngLoad(window, targetImage)
+    if targetImage == window._customThemePngBackgroundImage
+        or targetImage == window._lilithBackgroundImage then
+        window:_setBackgroundLoading(targetImage, true)
+    end
+    local function isCurrentRequest()
+        return window._pngLoadGenerations[targetImage] == generation
+    end
     task.spawn(function()
         local editableImage
         local ok, err = pcall(function()
             assert(type(buffer) == "table" and type(buffer.fromstring) == "function", "buffer.fromstring is unavailable")
-            local decoder = configuredDecoder
+            local encoded = game:HttpGet(imageUrl)
+            assert(not window._destroyed and isCurrentRequest(), "Image loading cancelled")
+            assert(type(encoded) == "string" and #encoded >= 4 and #encoded <= 8 * 1024 * 1024,
+                "Image data is empty or exceeds 8 MB")
+
+            local imageFormat
+            if string.sub(encoded, 1, 8) == "\137PNG\13\10\26\10" then
+                imageFormat = "png"
+            elseif string.sub(encoded, 1, 2) == "\255\216" then
+                imageFormat = "jpeg"
+            else
+                error("Image URL did not return a PNG or JPEG")
+            end
+
+            local decoderName = if imageFormat == "png" then "PNG" else "JPEG"
+            local headerWidth, headerHeight
+            if imageFormat == "png" then
+                assert(#encoded >= 24, "PNG data is truncated")
+                local function readBigEndian(offset)
+                    return (((string.byte(encoded, offset) * 256 + string.byte(encoded, offset + 1)) * 256
+                        + string.byte(encoded, offset + 2)) * 256 + string.byte(encoded, offset + 3))
+                end
+                headerWidth, headerHeight = readBigEndian(17), readBigEndian(21)
+            else
+                local offset = 3
+                while offset <= #encoded do
+                    assert(string.byte(encoded, offset) == 0xFF, "invalid JPEG marker alignment")
+                    while offset <= #encoded and string.byte(encoded, offset) == 0xFF do
+                        offset += 1
+                    end
+                    assert(offset <= #encoded, "unexpected end before JPEG marker")
+                    local marker = string.byte(encoded, offset)
+                    offset += 1
+                    if marker == 0xD8 or marker == 0x01 or (marker >= 0xD0 and marker <= 0xD7) then
+                        continue
+                    end
+                    assert(offset + 1 <= #encoded, "truncated JPEG segment")
+                    local segmentLength = string.byte(encoded, offset) * 256 + string.byte(encoded, offset + 1)
+                    assert(segmentLength >= 2 and offset + segmentLength - 1 <= #encoded, "invalid JPEG segment length")
+                    if marker == 0xC0 then
+                        assert(segmentLength >= 8 and string.byte(encoded, offset + 2) == 8,
+                            "only baseline 8-bit JPEG images are supported")
+                        headerHeight = string.byte(encoded, offset + 3) * 256 + string.byte(encoded, offset + 4)
+                        headerWidth = string.byte(encoded, offset + 5) * 256 + string.byte(encoded, offset + 6)
+                        break
+                    elseif marker == 0xC2 then
+                        error("progressive JPEG is not supported")
+                    end
+                    offset += segmentLength
+                end
+                assert(headerWidth and headerHeight, "JPEG frame header was not found")
+            end
+            assert(headerWidth > 0 and headerHeight > 0 and headerWidth <= 4096 and headerHeight <= 4096
+                and headerWidth * headerHeight <= 4 * 1024 * 1024,
+                decoderName .. " dimensions exceed the supported 4096 x 4096 pixel limit")
+
+            local decoder = if imageFormat == "png" then configuredPngDecoder else configuredJpegDecoder
+            local decoderUrl = if imageFormat == "png" then pngDecoderUrl else jpegDecoderUrl
             local incompatibleModules = {}
             if not decoder and script then
                 local roots = {}
@@ -4615,7 +6713,14 @@ loadRestorePng = function(window, imageUrl, configuredDecoder, decoderUrl, targe
                     for _, descendant in ipairs(root:GetDescendants()) do
                         if descendant:IsA("ModuleScript") and not seenModules[descendant] then
                             local moduleName = string.lower((string.gsub(descendant.Name, "[^%w]", "")))
-                            if moduleName == "png" or moduleName == "luaupng" or moduleName == "pngluau" then
+                            local matchesFormat
+                            if imageFormat == "png" then
+                                matchesFormat = moduleName == "png" or moduleName == "luaupng" or moduleName == "pngluau"
+                            else
+                                matchesFormat = moduleName == "jpeg" or moduleName == "jpg"
+                                    or moduleName == "luaujpeg" or moduleName == "jpegluau"
+                            end
+                            if matchesFormat then
                                 seenModules[descendant] = true
                                 local candidate = require(descendant)
                                 if type(candidate) == "table" and type(candidate.decode) == "function"
@@ -4637,34 +6742,40 @@ loadRestorePng = function(window, imageUrl, configuredDecoder, decoderUrl, targe
                     local detail = #incompatibleModules > 0
                         and (" Found incompatible ModuleScript(s): " .. table.concat(incompatibleModules, ", ") .. ".")
                         or ""
-                    error("Add the updated yielding PNG decoder as a sibling ModuleScript named 'png' or 'luau-png', pass PngDecoder, or set PngDecoderUrl." .. detail)
+                    if imageFormat == "png" then
+                        error("Add the updated yielding PNG decoder as a sibling ModuleScript named 'png' or 'luau-png', pass PngDecoder, or set PngDecoderUrl." .. detail)
+                    else
+                        error("Add jpeg.luau as a sibling ModuleScript named 'jpeg' or 'jpg', pass JpegDecoder, or set JpegDecoderUrl." .. detail)
+                    end
                 end
                 assert(type(loadstring) == "function", "loadstring is unavailable")
                 local decoderSource = game:HttpGet(decoderUrl)
+                assert(type(decoderSource) == "string" and decoderSource ~= "", "Unable to download " .. decoderName .. " decoder")
+                if imageFormat == "jpeg" and string.find(decoderSource, "local JPEG = {", 1, true)
+                    and not string.match(decoderSource, "%sreturn%s+JPEG%s*$") then
+                    -- jpeg.luau keeps its module return conditional so it can also be concatenated with the test script.
+                    decoderSource = decoderSource .. "\nreturn JPEG"
+                end
                 local decoderChunk, compileError = loadstring(decoderSource)
-                assert(type(decoderChunk) == "function", "Unable to compile PNG decoder: " .. tostring(compileError))
+                assert(type(decoderChunk) == "function",
+                    "Unable to compile " .. decoderName .. " decoder: " .. tostring(compileError))
                 decoder = decoderChunk()
             end
             assert(type(decoder) == "table" and type(decoder.decode) == "function",
-                "PNG decoder must expose decode(buffer)")
+                decoderName .. " decoder must expose decode(buffer)")
             assert(decoder.supportsYieldIfNeeded == true,
-                "PNG decoder must support cooperative yielding (supportsYieldIfNeeded = true)")
-
-            local encoded = game:HttpGet(imageUrl)
-            assert(type(encoded) == "string" and #encoded >= 24 and #encoded <= 8 * 1024 * 1024, "PNG data is empty or exceeds 8 MB")
-            assert(string.sub(encoded, 1, 8) == "\137PNG\13\10\26\10", "Image URL did not return a PNG")
-            local function readBigEndian(offset)
-                return (((string.byte(encoded, offset) * 256 + string.byte(encoded, offset + 1)) * 256
-                    + string.byte(encoded, offset + 2)) * 256 + string.byte(encoded, offset + 3))
+                decoderName .. " decoder must support cooperative yielding (supportsYieldIfNeeded = true)")
+            if imageFormat == "png" then
+                window._pngDecoder = decoder
+            else
+                window._jpegDecoder = decoder
             end
-            local width, height = readBigEndian(17), readBigEndian(21)
-            assert(width > 0 and height > 0 and width <= 4096 and height <= 4096 and width * height <= 4 * 1024 * 1024,
-                "PNG dimensions exceed the supported 4096 x 4096 pixel limit")
+
             local lastYield = os.clock()
             local decoded = decoder.decode(buffer.fromstring(encoded), {
                 yieldIfNeeded = function()
-                    if window._destroyed then
-                        error("PNG loading cancelled")
+                    if window._destroyed or not isCurrentRequest() then
+                        error("Image loading cancelled")
                     end
                     if os.clock() - lastYield >= 1 / 60 then
                         lastYield = os.clock()
@@ -4672,13 +6783,19 @@ loadRestorePng = function(window, imageUrl, configuredDecoder, decoderUrl, targe
                     end
                 end,
             })
-            assert(decoded.width == width and decoded.height == height and typeof(decoded.pixels) == "buffer",
-                "PNG decoder returned invalid image data")
-            if window._destroyed or not targetImage or not targetImage.Parent then
+            assert(type(decoded) == "table" and type(decoded.width) == "number"
+                and type(decoded.height) == "number" and typeof(decoded.pixels) == "buffer",
+                decoderName .. " decoder returned invalid image data")
+            local width, height = decoded.width, decoded.height
+            assert(width > 0 and height > 0 and width <= 4096 and height <= 4096
+                and width * height <= 4 * 1024 * 1024,
+                decoderName .. " dimensions exceed the supported 4096 x 4096 pixel limit")
+            assert(width == headerWidth and height == headerHeight, decoderName .. " decoder returned invalid dimensions")
+            if window._destroyed or not isCurrentRequest() or not targetImage or not targetImage.Parent then
                 return
             end
 
-            local maxDimension = targetImage == window._lilithBackgroundImage and 1024 or 256
+            local maxDimension = targetImage == window._restoreImageLabel and 256 or 1023
             local scale = math.min(1, maxDimension / math.max(width, height))
             local outputWidth = math.max(1, math.floor(width * scale))
             local outputHeight = math.max(1, math.floor(height * scale))
@@ -4692,12 +6809,15 @@ loadRestorePng = function(window, imageUrl, configuredDecoder, decoderUrl, targe
                         buffer.copy(outputPixels, (y * outputWidth + x) * 4, decoded.pixels, (sourceY * width + sourceX) * 4, 4)
                     end
                     if os.clock() - lastYield >= 1 / 60 then
+                        if window._destroyed or not isCurrentRequest() then
+                            error("Image loading cancelled")
+                        end
                         lastYield = os.clock()
                         task.wait()
                     end
                 end
             end
-            if window._destroyed or not targetImage.Parent then
+            if window._destroyed or not isCurrentRequest() or not targetImage.Parent then
                 return
             end
             editableImage = game:GetService("AssetService"):CreateEditableImage({
@@ -4710,22 +6830,48 @@ loadRestorePng = function(window, imageUrl, configuredDecoder, decoderUrl, targe
                 window._restoreEditableImage = editableImage
                 targetImage.Visible = true
                 window._restoreIcon.Visible = false
+            elseif targetImage == window._customThemePngBackgroundImage then
+                window._customThemeEditableImage = editableImage
+                cacheThemeImage(window, imageUrl, editableImage)
+                targetImage.Visible = true
             else
                 window._lilithEditableImage = editableImage
                 window._lilithImageLoadState = "loaded"
                 targetImage.Visible = window._themePreset == "Lilith"
+                    and not window._customThemeBackgroundImage.Visible
+                window:_applyLilithSurfaceMode()
+            end
+            if targetImage == window._customThemePngBackgroundImage
+                or targetImage == window._lilithBackgroundImage then
+                window:_setBackgroundLoading(targetImage, false)
             end
         end)
         if not ok then
             if editableImage then
                 editableImage:Destroy()
             end
-            if not window._destroyed then
+            if not window._destroyed and isCurrentRequest() then
+                if targetImage == window._customThemePngBackgroundImage
+                    or targetImage == window._lilithBackgroundImage then
+                    window:_setBackgroundLoading(targetImage, false)
+                end
                 if targetImage == window._lilithBackgroundImage then
                     window._lilithImageLoadState = "failed"
+                    window:_applyLilithSurfaceMode()
                 end
-                local imageName = targetImage == window._lilithBackgroundImage and "Lilith background" or "restore button"
-                warn("[AstraUI] Unable to load " .. imageName .. " PNG: " .. tostring(err))
+                local imageName = targetImage == window._lilithBackgroundImage and "Lilith background"
+                    or (targetImage == window._customThemePngBackgroundImage and "custom theme background"
+                    or "restore button")
+                local message = "[AstraUI] Unable to load " .. imageName .. " image: " .. tostring(err)
+                warn(message)
+                if targetImage == window._customThemePngBackgroundImage and window._ready then
+                    window:Notify({
+                        Type = "Error",
+                        Title = window:_resolveText("Theme image failed"),
+                        Content = tostring(err),
+                        Duration = 5,
+                    })
+                end
             end
         end
     end)
@@ -4759,10 +6905,11 @@ function WindowMethods:_build(config)
     self._contentScale = make("UIScale", {
         Scale = 1,
     }, self._uiRoot)
+    local cornerSize = self.Theme.CornerRadius
     self._panel = make("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = self.Theme.Background,
-        BackgroundTransparency = 1,
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Position = UDim2.fromScale(0.5, 0.5),
@@ -4770,6 +6917,9 @@ function WindowMethods:_build(config)
         Visible = false,
         ZIndex = 1,
     }, self._uiRoot)
+    self._panelMotionScale = make("UIScale", {
+        Scale = 1,
+    }, self._panel)
     self._contentGroup = make("Frame", {
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -4777,7 +6927,7 @@ function WindowMethods:_build(config)
         Size = UDim2.fromScale(1, 1),
         ZIndex = 1,
     }, self._panel)
-    addCorner(self._panel, 8, self, true)
+    addCorner(self._panel, cornerSize, self)
     self._panelStroke = addStroke(self._panel, self.Theme.WindowBorder, 0, self, "WindowBorder")
     self._panelStrokeTargetTransparency = self._panelStroke.Transparency
     self._panelStroke.Transparency = 1
@@ -4792,7 +6942,53 @@ function WindowMethods:_build(config)
         Visible = false,
         ZIndex = 2,
     }, self._contentGroup)
-    addCorner(self._lilithBackgroundImage, 8, self, true)
+    addCorner(self._lilithBackgroundImage, cornerSize, self)
+    self._customThemeBackgroundImage = make("ImageLabel", {
+        Active = false,
+        BackgroundTransparency = 1,
+        ImageTransparency = 0.08,
+        Position = UDim2.fromScale(0, 0),
+        ScaleType = Enum.ScaleType.Crop,
+        Size = UDim2.fromScale(1, 1),
+        Visible = false,
+        ZIndex = 2,
+    }, self._contentGroup)
+    addCorner(self._customThemeBackgroundImage, cornerSize, self)
+    self._customThemePngBackgroundImage = make("ImageLabel", {
+        Active = false,
+        BackgroundTransparency = 1,
+        ImageTransparency = 0.08,
+        Position = UDim2.fromScale(0, 0),
+        ScaleType = Enum.ScaleType.Crop,
+        Size = UDim2.fromScale(1, 1),
+        Visible = false,
+        ZIndex = 2,
+    }, self._contentGroup)
+    addCorner(self._customThemePngBackgroundImage, cornerSize, self)
+    self._backgroundLoadingIndicator = make("Frame", {
+        Active = false,
+        BackgroundColor3 = self.Theme.SurfaceRaised,
+        BackgroundTransparency = 0.48,
+        BorderSizePixel = 0,
+        Position = UDim2.fromScale(0, 0),
+        Selectable = false,
+        Size = UDim2.fromScale(1, 1),
+        Visible = false,
+        ZIndex = 90,
+    }, self._contentGroup)
+    self:_trackTheme(self._backgroundLoadingIndicator, "SurfaceRaised", "BackgroundColor3")
+    addCorner(self._backgroundLoadingIndicator, cornerSize, self)
+    self:_text(self._backgroundLoadingIndicator, "Loading background", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.GothamBold,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(1, -32, 0, 28),
+        TextColor3 = self.Theme.TextPrimary,
+        TextSize = 15,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 91,
+    })
     local aurora = make("Frame", {
         BackgroundColor3 = self.Theme.Accent,
         BackgroundTransparency = 1,
@@ -4826,7 +7022,7 @@ function WindowMethods:_build(config)
     self._restoreButton.Position = UDim2.fromOffset(24, 72)
     self._restoreButton.Visible = true
     self._restoreButton:SetAttribute("AstraLabel", "Toggle window visibility")
-    self._restoreIcon = self:_icon(self._restoreButton, "layout-dashboard", {
+    self._restoreIcon = self:_icon(self._restoreButton, "heart", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(26, 26),
@@ -4848,11 +7044,22 @@ function WindowMethods:_build(config)
     }, self._restoreButton)
     addCorner(self._restoreImageLabel, 7, nil, true)
     local pngDecoderUrl = config.PngDecoderUrl or DEFAULT_PNG_DECODER_URL
-    if config.RestoreImageUrl then
-        loadRestorePng(self, config.RestoreImageUrl, config.PngDecoder, pngDecoderUrl)
-    end
+    local jpegDecoderUrl = config.JpegDecoderUrl or DEFAULT_JPEG_DECODER_URL
     self._pngDecoder = config.PngDecoder
     self._pngDecoderUrl = pngDecoderUrl
+    self._jpegDecoder = config.JpegDecoder
+    self._jpegDecoderUrl = jpegDecoderUrl
+    if config.RestoreImageUrl then
+        loadRestoreImage(
+            self,
+            config.RestoreImageUrl,
+            self._pngDecoder,
+            self._pngDecoderUrl,
+            nil,
+            self._jpegDecoder,
+            self._jpegDecoderUrl
+        )
+    end
     self._lilithImageLoadState = "idle"
     self:_connect(self._restoreButton.InputBegan, function(input)
         self:_beginRestoreButtonDrag(input)
@@ -4864,28 +7071,9 @@ function WindowMethods:_build(config)
         ZIndex = 4,
     }, self._contentGroup)
     self._header = header
-    self:_trackLilithSurface(header, 0.18)
-    local cornerSize = self.Theme.CornerRadius
-    addCorner(header, cornerSize, self)
-    local headerLeftCorner = make("Frame", {
-        BackgroundColor3 = self.Theme.Surface,
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 0, 1, -cornerSize),
-        Size = UDim2.new(0, cornerSize, 0, cornerSize),
-        ZIndex = 4,
-    }, header)
-    self:_trackTheme(headerLeftCorner, "Surface", "BackgroundColor3")
-    self:_trackLilithSurface(headerLeftCorner, 0.18)
-    local headerRightCorner = make("Frame", {
-        AnchorPoint = Vector2.new(1, 0),
-        BackgroundColor3 = self.Theme.Surface,
-        BorderSizePixel = 0,
-        Position = UDim2.new(1, 0, 1, -cornerSize),
-        Size = UDim2.new(0, cornerSize, 0, cornerSize),
-        ZIndex = 4,
-    }, header)
-    self:_trackTheme(headerRightCorner, "Surface", "BackgroundColor3")
-    self:_trackLilithSurface(headerRightCorner, 0.18)
+    self:_trackLilithSurface(header, LILITH_SURFACE_BASE_TRANSPARENCY)
+    self._headerCorner = make("UICorner", {}, header)
+    self:_applyComponentCorners()
     self:_trackTheme(header, "Surface", "BackgroundColor3")
     local title = self:_text(header, config.Title or "Astra UI", {
         Active = true,
@@ -4984,20 +7172,50 @@ function WindowMethods:_build(config)
         Visible = self._headerVersionText ~= nil and self._headerVersionText ~= "",
         ZIndex = 6,
     })
-    self._discordButton = self:_button(header, "", function()
+    self._headerActionGroup = make("Frame", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundColor3 = self.Theme.SurfaceRaised,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Position = UDim2.new(1, -8, 0, 6),
+        Size = UDim2.fromOffset(136, 44),
+        ZIndex = 9,
+    }, header)
+    self:_trackTheme(self._headerActionGroup, "SurfaceRaised", "BackgroundColor3")
+    addCorner(self._headerActionGroup, 9, self)
+    addStroke(self._headerActionGroup, self.Theme.Border, 0.35, self)
+    self._headerActionDividerLeft = make("Frame", {
+        BackgroundColor3 = self.Theme.Border,
+        BackgroundTransparency = 0.15,
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(46, 10),
+        Size = UDim2.new(0, 1, 1, -20),
+        ZIndex = 11,
+    }, self._headerActionGroup)
+    self:_trackTheme(self._headerActionDividerLeft, "Border", "BackgroundColor3")
+    self._headerActionDividerRight = make("Frame", {
+        BackgroundColor3 = self.Theme.Border,
+        BackgroundTransparency = 0.15,
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(89, 10),
+        Size = UDim2.new(0, 1, 1, -20),
+        ZIndex = 11,
+    }, self._headerActionGroup)
+    self:_trackTheme(self._headerActionDividerRight, "Border", "BackgroundColor3")
+    self._discordButton = self:_button(self._headerActionGroup, "", function()
         if not self._discordUrl or self._discordUrl == "" then
             self:Notify({
                 Type = "Warning",
-                Title = "Discord link not configured",
-                Content = "Set Discord.Url with SetDiscordLink before using this button.",
+                Title = self:_discordText("url_missing.title"),
+                Content = self:_discordText("url_missing.content"),
             })
             return
         end
         if not self._discordCopy then
             self:Notify({
                 Type = "Warning",
-                Title = "Clipboard not configured",
-                Content = "Provide a copy callback with SetDiscordLink to copy the invite.",
+                Title = self:_discordText("copy_missing.title"),
+                Content = self:_discordText("copy_missing.content"),
             })
             return
         end
@@ -5006,29 +7224,30 @@ function WindowMethods:_build(config)
             warn("[AstraUI] Discord link copy failed: " .. tostring(err))
             self:Notify({
                 Type = "Error",
-                Title = "Could not copy Discord link",
-                Content = "The configured copy callback failed.",
+                Title = self:_discordText("copy_failed.title"),
+                Content = self:_discordText("copy_failed.content"),
             })
             return
         end
         self:Notify({
             Type = "Success",
-            Title = "Discord link copied",
-            Content = "The invite link is ready to paste.",
+            Title = self:_discordText("copied.title"),
+            Content = self:_discordText("copied.content"),
         })
     end, {
-        Position = UDim2.new(1, -100, 0, 7),
-        Size = UDim2.fromOffset(40, 42),
+        Position = UDim2.fromOffset(47, 1),
+        Size = UDim2.fromOffset(42, 42),
         Height = 42,
         Background = self.Theme.SurfaceRaised,
         HoverRole = "SurfaceHover",
         Role = "SurfaceRaised",
         Stroke = self.Theme.Border,
-        StrokeTransparency = 0.35,
+        StrokeTransparency = 1,
+        HoverStrokeTransparency = 1,
+        Radius = 6,
         TextColor = self.Theme.AccentSecondary,
         ZIndex = 10,
     })
-    self._discordButton.Position = UDim2.new(1, -100, 0, 7)
     self:_icon(self._discordButton, "message-circle-more", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
@@ -5037,22 +7256,23 @@ function WindowMethods:_build(config)
         TextSize = 16,
         ZIndex = self._discordButton.ZIndex + 1,
     }, "D")
-    self._discordButton:SetAttribute("AstraLabel", "Copy Discord invite")
-    self._settingsButton = self:_button(header, "", function()
+    self._discordButton:SetAttribute("AstraLabel", self:_discordText("button"))
+    self._settingsButton = self:_button(self._headerActionGroup, "", function()
         self:OpenSettings()
     end, {
-        Position = UDim2.new(1, -148, 0, 7),
-        Size = UDim2.fromOffset(40, 42),
+        Position = UDim2.fromOffset(4, 1),
+        Size = UDim2.fromOffset(42, 42),
         Height = 42,
         Background = self.Theme.SurfaceRaised,
         HoverRole = "SurfaceHover",
         Role = "SurfaceRaised",
         Stroke = self.Theme.Border,
-        StrokeTransparency = 0.35,
+        StrokeTransparency = 1,
+        HoverStrokeTransparency = 1,
+        Radius = 6,
         TextColor = self.Theme.AccentSecondary,
         ZIndex = 10,
     })
-    self._settingsButton.Position = UDim2.new(1, -148, 0, 7)
     self:_icon(self._settingsButton, "settings-2", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
@@ -5071,29 +7291,35 @@ function WindowMethods:_build(config)
         ZIndex = 6,
     })
     local headerDivider = make("Frame", {
-        BackgroundColor3 = self.Theme.BorderActive,
+        BackgroundColor3 = self.Theme.Border,
         BorderSizePixel = 0,
         Position = UDim2.new(0, 0, 1, -1),
         Size = UDim2.new(1, 0, 0, 1),
         ZIndex = 8,
     }, header)
-    self:_trackTheme(headerDivider, "BorderActive", "BackgroundColor3")
+    self:_trackTheme(headerDivider, "Border", "BackgroundColor3")
     local headerDragSurface = make("Frame", {
         Active = true,
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         ZIndex = 5,
     }, header)
-    local hideButton = self:_button(header, "", function()
+    local hideButton = self:_button(self._headerActionGroup, "", function()
         self:SetVisible(false)
     end, {
-        Position = UDim2.new(1, -48, 0, 7),
-        Size = UDim2.new(0, 44, 0, 44),
+        Position = UDim2.fromOffset(90, 1),
+        Size = UDim2.fromOffset(42, 42),
         Height = 44,
-        Role = "Surface",
+        Background = self.Theme.SurfaceRaised,
+        HoverRole = "SurfaceHover",
+        Role = "SurfaceRaised",
+        Stroke = self.Theme.Border,
+        StrokeTransparency = 1,
+        HoverStrokeTransparency = 1,
+        Radius = 6,
         ZIndex = 10,
     })
-    hideButton.Position = UDim2.new(1, -52, 0, 6)
+    self._hideButton = hideButton
     self:_icon(hideButton, "minus", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
@@ -5116,28 +7342,9 @@ function WindowMethods:_build(config)
         Size = UDim2.new(0, 210, 1, 0),
         ZIndex = 3,
     }, self._body)
-    self:_trackLilithSurface(self._sidebar, 0.18)
-    addCorner(self._sidebar, cornerSize, self)
-    local sidebarTopCorner = make("Frame", {
-        AnchorPoint = Vector2.new(1, 0),
-        BackgroundColor3 = self.Theme.Surface,
-        BorderSizePixel = 0,
-        Position = UDim2.new(1, 0, 0, 0),
-        Size = UDim2.new(0, cornerSize, 0, cornerSize),
-        ZIndex = 3,
-    }, self._sidebar)
-    self:_trackTheme(sidebarTopCorner, "Surface", "BackgroundColor3")
-    self:_trackLilithSurface(sidebarTopCorner, 0.18)
-    local sidebarBottomCorner = make("Frame", {
-        AnchorPoint = Vector2.new(1, 1),
-        BackgroundColor3 = self.Theme.Surface,
-        BorderSizePixel = 0,
-        Position = UDim2.new(1, 0, 1, 0),
-        Size = UDim2.new(0, cornerSize, 0, cornerSize),
-        ZIndex = 3,
-    }, self._sidebar)
-    self:_trackTheme(sidebarBottomCorner, "Surface", "BackgroundColor3")
-    self:_trackLilithSurface(sidebarBottomCorner, 0.18)
+    self:_trackLilithSurface(self._sidebar, LILITH_SURFACE_BASE_TRANSPARENCY)
+    self._sidebarCorner = make("UICorner", {}, self._sidebar)
+    self:_applyComponentCorners()
     self:_trackTheme(self._sidebar, "Surface", "BackgroundColor3")
     self._tabList = make("ScrollingFrame", {
         Active = true,
@@ -5165,7 +7372,7 @@ function WindowMethods:_build(config)
         Visible = false,
         ZIndex = 50,
     }, self._body)
-    self:_trackLilithSurface(self._drawer, 0.18)
+    self:_trackLilithSurface(self._drawer, LILITH_SURFACE_BASE_TRANSPARENCY)
     addCorner(self._drawer, 12, self)
     addStroke(self._drawer, self.Theme.Border, 0.2, self)
     local drawerList = make("ScrollingFrame", {
@@ -5280,7 +7487,15 @@ function WindowMethods:_build(config)
     end)
     if self._themePreset == "Lilith" then
         self._lilithImageLoadState = "loading"
-        loadRestorePng(self, LILITH_BACKGROUND_URL, self._pngDecoder, self._pngDecoderUrl, self._lilithBackgroundImage)
+        loadRestoreImage(
+            self,
+            LILITH_BACKGROUND_URL,
+            self._pngDecoder,
+            self._pngDecoderUrl,
+            self._lilithBackgroundImage,
+            self._jpegDecoder,
+            self._jpegDecoderUrl
+        )
     end
     self:_setResponsiveLayout()
     self._ready = true
@@ -5305,14 +7520,61 @@ local function createWindow(config)
     assert(config.PngDecoderUrl == nil or (type(config.PngDecoderUrl) == "string"
         and config.PngDecoderUrl ~= "" and string.match(config.PngDecoderUrl, "^https?://")),
         "CreateWindow.PngDecoderUrl must be an HTTP(S) URL")
+    assert(config.JpegDecoder == nil or (type(config.JpegDecoder) == "table"
+        and type(config.JpegDecoder.decode) == "function"),
+        "CreateWindow.JpegDecoder must expose decode(buffer, options)")
+    assert(config.JpegDecoderUrl == nil or (type(config.JpegDecoderUrl) == "string"
+        and config.JpegDecoderUrl ~= "" and string.match(config.JpegDecoderUrl, "^https?://")),
+        "CreateWindow.JpegDecoderUrl must be an HTTP(S) URL")
     assert(config.Discord == nil or type(config.Discord) == "table", "CreateWindow.Discord must be a table")
     assert(config.Discord == nil or config.Discord.Url == nil or type(config.Discord.Url) == "string", "CreateWindow.Discord.Url must be a string")
     assert(config.Discord == nil or config.Discord.Copy == nil or type(config.Discord.Copy) == "function", "CreateWindow.Discord.Copy must be a function")
     assert(config.Localization == nil or type(config.Localization) == "table", "CreateWindow.Localization must be a table")
+    assert(config.Localization == nil or config.Localization.Locale == nil
+        or (type(config.Localization.Locale) == "string" and config.Localization.Locale ~= ""),
+        "CreateWindow.Localization.Locale must be a non-empty string")
+    assert(config.Localization == nil or config.Localization.Locales == nil
+        or type(config.Localization.Locales) == "table",
+        "CreateWindow.Localization.Locales must be a table")
+    assert(config.Localization == nil or config.Localization.Resolve == nil
+        or type(config.Localization.Resolve) == "function",
+        "CreateWindow.Localization.Resolve must be a function")
+    assert(config.Settings == nil or type(config.Settings) == "table", "CreateWindow.Settings must be a table")
+    assert(config.Settings == nil or config.Settings.ProfileKey == nil
+        or (type(config.Settings.ProfileKey) == "string" and config.Settings.ProfileKey ~= ""),
+        "CreateWindow.Settings.ProfileKey must be a non-empty string")
+    assert(config.Settings == nil or config.Settings.Load == nil or type(config.Settings.Load) == "function",
+        "CreateWindow.Settings.Load must be a function")
+    assert(config.Settings == nil or config.Settings.Save == nil or type(config.Settings.Save) == "function",
+        "CreateWindow.Settings.Save must be a function")
+    assert(config.Settings == nil or config.Settings.Copy == nil or type(config.Settings.Copy) == "function",
+        "CreateWindow.Settings.Copy must be a function")
+    assert(config.Settings == nil or config.Settings.FilePath == nil
+        or (type(config.Settings.FilePath) == "string" and config.Settings.FilePath ~= ""),
+        "CreateWindow.Settings.FilePath must be a non-empty string")
+    assert(config.StatePersistence == nil or type(config.StatePersistence) == "table",
+        "CreateWindow.StatePersistence must be a table")
+    assert(config.StatePersistence == nil or config.StatePersistence.Path == nil
+        or (type(config.StatePersistence.Path) == "string" and config.StatePersistence.Path ~= ""),
+        "CreateWindow.StatePersistence.Path must be a non-empty string")
+    assert(config.StatePersistence == nil or config.StatePersistence.AutoSaveInterval == nil
+        or (type(config.StatePersistence.AutoSaveInterval) == "number"
+            and config.StatePersistence.AutoSaveInterval > 0),
+        "CreateWindow.StatePersistence.AutoSaveInterval must be a positive number")
     assert(config.IconLibrary == nil or (type(config.IconLibrary) == "table" and type(config.IconLibrary.GetAsset) == "function"), "CreateWindow.IconLibrary must expose GetAsset(name)")
     assert(config.IconLibraries == nil or type(config.IconLibraries) == "table", "CreateWindow.IconLibraries must be a table")
     assert(config.IconLibraries == nil or config.IconLibraries.Lucide == nil or (type(config.IconLibraries.Lucide) == "table" and type(config.IconLibraries.Lucide.GetAsset) == "function"), "CreateWindow.IconLibraries.Lucide must expose GetAsset(name)")
     assert(config.IconLibraries == nil or config.IconLibraries.Solar == nil or type(config.IconLibraries.Solar) == "table", "CreateWindow.IconLibraries.Solar must be an icon map")
+    local settingsAdapter = shallowCopy(config.Settings)
+    if settingsAdapter.FilePath then
+        local settingsPath = settingsAdapter.FilePath
+        settingsAdapter.Load = settingsAdapter.Load or function()
+            return readTextFile(settingsPath)
+        end
+        settingsAdapter.Save = settingsAdapter.Save or function(json)
+            writeTextFile(settingsPath, json)
+        end
+    end
     local theme = shallowCopy(LILITH_THEME)
     for key, value in pairs(config.Theme or {}) do
         assert(THEME_KEYS[key], "Unknown theme token: " .. tostring(key))
@@ -5320,6 +7582,9 @@ local function createWindow(config)
             assert(type(value) == "number" and value >= 0 and value <= 32, "Theme.CornerRadius must be between 0 and 32")
         elseif key == "Density" then
             assert(value == "Compact" or value == "Comfortable", "Theme.Density must be Compact or Comfortable")
+        elseif key == "SurfaceTransparency" then
+            assert(type(value) == "number" and value >= 0 and value <= 1,
+                "Theme.SurfaceTransparency must be between 0 and 1")
         else
             assert(typeof(value) == "Color3", "Theme." .. key .. " must be a Color3")
         end
@@ -5340,6 +7605,83 @@ local function createWindow(config)
             themeAccentOverrides[role] = config.Theme[role]
         end
     end
+    local localization = shallowCopy(config.Localization)
+    local thaiSettingsTranslations = {
+        ["Settings"] = "ตั้งค่า",
+        ["Color theme"] = "ธีมสี",
+        ["Language"] = "ภาษา",
+        ["UI toggle key"] = "ปุ่มเปิด/ปิด UI",
+        ["Window behavior"] = "การทำงานของหน้าต่าง",
+        ["Add theme"] = "เพิ่มธีม",
+        ["Add language"] = "เพิ่มภาษา",
+        ["Create theme"] = "สร้างธีม",
+        ["Edit theme"] = "แก้ไขธีม",
+        ["Delete theme"] = "ลบธีม",
+        ["Delete theme?"] = "ยืนยันการลบธีม?",
+        ["Theme name"] = "ชื่อธีม",
+        ["Name"] = "ชื่อ",
+        ["Copy preset"] = "คัดลอกชุดสี",
+        ["Background image URL"] = "URL ภาพพื้นหลัง",
+        ["Image URL (optional)"] = "URL ภาพ (ไม่บังคับ)",
+        ["Image URL or asset ID (optional)"] = "URL ภาพหรือ Asset ID (ไม่บังคับ)",
+        ["Surface transparency"] = "ความโปร่งใสของพื้นผิว",
+        ["Color map"] = "ชุดสี",
+        ["Save theme"] = "บันทึกธีม",
+        ["Save changes"] = "บันทึกการแก้ไข",
+        ["Theme saved"] = "บันทึกธีมแล้ว",
+        ["Could not save theme"] = "บันทึกธีมไม่สำเร็จ",
+        ["Enter a theme name"] = "กรุณาระบุชื่อธีม",
+        ["This name is reserved"] = "ชื่อนี้เป็นชื่อที่สงวนไว้",
+        ["A theme with this name already exists"] = "มีธีมชื่อนี้อยู่แล้ว",
+        ["Theme image failed"] = "โหลดรูปธีมไม่สำเร็จ",
+        ["Loading background"] = "กำลังโหลดพื้นหลัง",
+        ["Export preset"] = "ส่งออก preset",
+        ["Preset exported"] = "ส่งออก preset แล้ว",
+        ["Preset JSON copied"] = "คัดลอก JSON ของ preset แล้ว",
+        ["Export failed"] = "ส่งออกไม่สำเร็จ",
+        ["Save"] = "บันทึก",
+        ["Delete"] = "ลบ",
+        ["Edit"] = "แก้ไข",
+        ["Edit language"] = "แก้ไขภาษา",
+        ["Delete language"] = "ลบภาษา",
+        ["Delete language?"] = "ยืนยันการลบภาษา?",
+        ["Save language"] = "บันทึกภาษา",
+        ["This theme will be permanently deleted."] = "ธีมนี้จะถูกลบอย่างถาวร",
+        ["This language will be permanently deleted."] = "ภาษานี้จะถูกลบอย่างถาวร",
+        ["This cannot be undone."] = "การดำเนินการนี้ย้อนกลับไม่ได้",
+        ["Delete failed"] = "ลบไม่สำเร็จ",
+        ["Cancel"] = "ยกเลิก",
+        ["Copy JSON template"] = "คัดลอก JSON ต้นแบบ",
+        ["Resize"] = "ปรับขนาด",
+        ["Drag"] = "ลาก",
+        ["On"] = "เปิด",
+        ["Off"] = "ปิด",
+        ["Language name"] = "ชื่อภาษา",
+        ["Press a key..."] = "กดปุ่มที่ต้องการ...",
+        ["Copied"] = "คัดลอกแล้ว",
+        ["JSON configuration copied"] = "คัดลอกการตั้งค่า JSON แล้ว",
+        ["Copy failed"] = "คัดลอกไม่สำเร็จ",
+        ["Invalid JSON"] = "JSON ไม่ถูกต้อง",
+    }
+    local locales = {
+        ["en-US"] = {Name = "English", Translations = {}},
+        ["th-TH"] = {Name = "ไทย", Translations = deepCopy(thaiSettingsTranslations)},
+    }
+    for locale, definition in pairs(localization.Locales or {}) do
+        local localeDefinition = deepCopy(definition)
+        if locale == "th-TH" then
+            localeDefinition.Translations = localeDefinition.Translations or {}
+            for key, value in pairs(thaiSettingsTranslations) do
+                if localeDefinition.Translations[key] == nil then
+                    localeDefinition.Translations[key] = value
+                end
+            end
+        end
+        locales[locale] = localeDefinition
+    end
+    validateLocales(locales)
+    localization.Locales = locales
+    localization.Locale = localization.Locale or "en-US"
     local window = setmetatable({
         _connections = {},
         _components = {},
@@ -5361,6 +7703,10 @@ local function createWindow(config)
         _themePreset = matchesThemePreset(theme, LILITH_THEME) and "Lilith"
             or (matchesThemePreset(theme, DEFAULT_THEME) and "Dark"
             or (matchesThemePreset(theme, LIGHT_THEME) and "Light" or nil)),
+        _settingsThemeName = nil,
+        _customThemes = {},
+        _customThemeImages = {},
+        _applyingSharedSettings = false,
         _requestedSize = initialSize,
         _toggleKey = config.ToggleKey,
         _narrow = false,
@@ -5370,15 +7716,64 @@ local function createWindow(config)
         Responsive = config.Responsive ~= false,
         Resizable = config.Resizable ~= false,
         Theme = theme,
+        _statePersistence = shallowCopy(config.StatePersistence),
         IconLibrary = config.IconLibrary,
         IconLibraries = iconLibraries,
         _headerVersionText = config.HeaderVersion or "",
         _discordUrl = config.Discord and config.Discord.Url,
         _discordCopy = config.Discord and config.Discord.Copy,
-        Localization = shallowCopy(config.Localization),
+        Localization = localization,
+        _settingsAdapter = settingsAdapter,
     }, WindowMethods)
-    window.Localization.Locale = window.Localization.Locale or "en"
+    window._settingsThemeName = window._themePreset or "Custom"
+    if not window._themePreset then
+        window._customThemes.Custom = shallowCopy(theme)
+    end
     window:_build(config)
+    local settingsAdapter = window._settingsAdapter
+    local profileKey = settingsAdapter.ProfileKey or "default"
+    local store = SHARED_SETTINGS[profileKey]
+    if not store then
+        store = {
+            Windows = {},
+            Save = settingsAdapter.Save,
+            Json = nil,
+        }
+        SHARED_SETTINGS[profileKey] = store
+        if settingsAdapter.Load then
+            local loadOk, loaded = pcall(settingsAdapter.Load)
+            if loadOk and loaded ~= nil then
+                local decodeOk, profile = pcall(function()
+                    assert(type(loaded) == "string", "Settings.Load must return a JSON string or nil")
+                    local decoded = HttpService:JSONDecode(loaded)
+                    validateSettingsProfile(decoded)
+                    return decoded
+                end)
+                if decodeOk then
+                    store.Json = HttpService:JSONEncode(profile)
+                else
+                    warn("[AstraUI] Failed to load shared settings: " .. tostring(profile))
+                end
+            elseif not loadOk then
+                warn("[AstraUI] Failed to load shared settings: " .. tostring(loaded))
+            end
+        end
+    elseif not store.Save and settingsAdapter.Save then
+        store.Save = settingsAdapter.Save
+    end
+    window._settingsStore = store
+    store.Windows[window] = true
+    if store.Json then
+        local applyOk, applyError = pcall(function()
+            window:_applySettingsProfile(HttpService:JSONDecode(store.Json))
+            store.Json = HttpService:JSONEncode(window:_getSettingsProfile())
+        end)
+        if not applyOk then
+            warn("[AstraUI] Failed to apply shared settings: " .. tostring(applyError))
+        end
+    else
+        store.Json = HttpService:JSONEncode(window:_getSettingsProfile())
+    end
     window:SetVisible(true)
     return window
 end

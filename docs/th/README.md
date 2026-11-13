@@ -10,8 +10,8 @@ Astra UI คือไลบรารีส่วนติดต่อผู้�
 - ปุ่ม สวิตช์ แถบเลื่อน เมนูแบบเลื่อนลง เมนูเลือกหลายรายการ และเมนูเลือกผู้เล่น
 - ช่องกรอกข้อมูล ปุ่มลัด สี ตัวบอกความคืบหน้า แผงสถานะ และป้ายกำกับ
 - การแจ้งเตือน กล่องโต้ตอบ จุดเชื่อมต่อสำหรับการแปลภาษา และการจัดเก็บสถานะของหน้าต่าง
-- รองรับรูป PNG สำหรับปุ่มเปิดหน้าต่างแบบลอยและภาพพื้นหลังของธีม Lilith
-- มีตัวถอดรหัส PNG สำหรับ Luau พร้อมรองรับการ yield ระหว่างประมวลผล
+- รองรับรูป PNG และ JPEG สำหรับปุ่มเปิดหน้าต่างแบบลอยและภาพพื้นหลังของธีม Lilith
+- มีตัวถอดรหัส PNG และ JPEG baseline สำหรับ Luau พร้อมรองรับการ yield ระหว่างประมวลผล
 
 ## ไฟล์
 
@@ -20,6 +20,7 @@ Astra UI คือไลบรารีส่วนติดต่อผู้�
 | `main.lua` | ไลบรารี Astra UI; การโหลดไอคอนจากระยะไกลในปัจจุบันต้องใช้ `game:HttpGet` และ `loadstring` |
 | `demo.lua` | ตัวอย่างแดชบอร์ดที่ใช้ไลบรารี |
 | `png.luau` | ตัวถอดรหัส PNG ที่รองรับการ yield |
+| `jpeg.luau` | ตัวถอดรหัส JPEG baseline ที่รองรับการ yield |
 | `UI_LIBRARY_SPEC.md` | ข้อกำหนดการออกแบบและ API |
 | `LICENSE` | สัญญาอนุญาต MIT |
 
@@ -119,6 +120,7 @@ settings:Button({
 - `Keybind`
 - `Colorpicker`
 - `Paragraph`
+- `Console`
 - `Divider`
 - `Progress`
 - `State` และ `EmptyState`
@@ -154,22 +156,22 @@ window:SetTheme({
 
 ค่าสีเน้นที่กำหนดผ่าน `CreateWindow.Theme` หรือ `SetTheme` จะยังคงอยู่เมื่อเปลี่ยนจาก Lilith กลับไปใช้ Dark หรือ Light
 
-## รูปภาพและการรองรับ PNG
+## รูปภาพ: รองรับ PNG และ JPEG
 
 `RestoreImageUrl` ใช้ระบุรูปภาพที่จะแสดงในปุ่มเปิดหน้าต่างแบบลอย ส่วนธีม Lilith มี URL ภาพพื้นหลังของตัวเอง
 
-หากต้องการใช้รูป PNG ให้กำหนด `RestoreImageUrl` ไลบรารีจะโหลดตัวถอดรหัสที่มาพร้อมกันให้อัตโนมัติ:
+กำหนด `RestoreImageUrl` เป็น URL ตรงของ PNG หรือ JPEG baseline ไลบรารีจะตรวจชนิดไฟล์และโหลดตัวถอดรหัสที่ตรงกันให้อัตโนมัติ:
 
 ```lua
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
 
 local window = AstraUI:CreateWindow({
     Title = "แดชบอร์ดของฉัน",
-    RestoreImageUrl = "https://example.com/icon.png",
+    RestoreImageUrl = "https://example.com/icon.jpg",
 })
 ```
 
-ตัวถอดรหัสที่มาพร้อมไลบรารีมี `decode(buffer, options)` และ `supportsYieldIfNeeded = true` ส่วน `PngDecoder` และ `PngDecoderUrl` ใช้แทนที่ด้วยตัวถอดรหัสที่กำหนดเองได้ การโหลดตัวถอดรหัสจากระยะไกลต้องใช้ executor หรือ runtime ที่รองรับ `game:HttpGet` และ `loadstring` จึงไม่เหมาะกับ Roblox client มาตรฐาน หากโหลดหรือถอดรหัสรูปไม่สำเร็จ ไลบรารีจะแสดงคำเตือนและคงไอคอนเริ่มต้นไว้ การรองรับ PNG ขึ้นอยู่กับความพร้อมใช้งานและสิทธิ์ของ `EditableImage` ในสภาพแวดล้อมเป้าหมาย
+ตัวถอดรหัสที่มาพร้อมไลบรารีมี `decode(buffer, options)` และ `supportsYieldIfNeeded = true` สามารถกำหนด `PngDecoder` / `PngDecoderUrl` และ `JpegDecoder` / `JpegDecoderUrl` เพื่อใช้ตัวถอดรหัสอื่นได้ JPEG รองรับ baseline 8-bit แบบ grayscale, RGB และ YCbCr แต่ไม่รองรับ progressive หรือ CMYK การโหลดตัวถอดรหัสจากระยะไกลต้องใช้ executor หรือ runtime ที่รองรับ `game:HttpGet` และ `loadstring` การแสดงภาพต้องใช้ `EditableImage` และสิทธิ์ที่จำเป็น หากโหลดหรือถอดรหัสรูปไม่สำเร็จ ไลบรารีจะแสดงคำเตือนและคงไอคอนเริ่มต้นไว้
 
 ## เมธอดของหน้าต่าง
 
@@ -179,9 +181,9 @@ local window = AstraUI:CreateWindow({
 - `SetLocale(locale)`, `SetToggleKey(Enum.KeyCode)`, `SetResizable(boolean)`, `SetDraggable(boolean)`
 - `Notify(config)`, `Dialog(config)`, `OpenSettings()`
 - `SetHeaderVersion(stringOrNil)`, `SetDiscordLink(urlOrNil, copyCallback)`
-- `GetState()`, `SetState(stateTable)` และ `Destroy()`
+- `GetState()`, `SetState(stateTable)`, `SaveStateToFile()`, `LoadStateFromFile()`, `StartStateAutoSave()` และ `Destroy()`
 
-กำหนด `Id` ให้กับตัวควบคุมและแท็บที่ต้องการกู้คืนด้วย `GetState()` และ `SetState()` ไลบรารีไม่ได้บันทึกข้อมูลลง data store หรือระบบไฟล์ การจัดเก็บข้อมูลถาวรเป็นหน้าที่ของ experience ที่นำไปใช้งาน
+กำหนด `Id` ให้กับตัวควบคุมและแท็บที่ต้องการกู้คืนด้วยเมธอด state การบันทึกไฟล์ต้องใช้ file API ที่ host จัดเตรียม และไลบรารีจะไม่บันทึกลง Roblox data store
 
 ## Demo
 

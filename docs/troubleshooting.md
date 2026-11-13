@@ -6,7 +6,7 @@
 2. Confirm a compatible decoder is supplied as `PngDecoder` or found as a nearby ModuleScript named `png` or `luau-png`.
 3. Confirm the decoder exports `supportsYieldIfNeeded = true` and accepts the `yieldIfNeeded` option.
 4. Confirm the target runtime supports `EditableImage` and has the required permissions.
-5. Confirm the image URL returns PNG data. The loader rejects non-PNG responses and images above its supported size/dimension limits.
+5. Confirm the URL returns PNG data or a supported baseline JPEG. The loader detects the image format from its signature and rejects unsupported formats or images above its size/dimension limits.
 
 ## The library fails while loading icons
 
@@ -14,7 +14,7 @@ The current icon loader fetches icon libraries with `game:HttpGet` and executes 
 
 ## Settings do not persist
 
-State serialization is available through `GetState()` and `SetState()`, but persistence is owned by the host. The demo's JSON file persistence requires filesystem functions such as `readfile` and `writefile`, which Roblox does not provide as standard APIs.
+State serialization is available through `GetState()` and `SetState()`. The library also provides `SaveStateToFile()` and `LoadStateFromFile()` convenience methods, but they require host filesystem functions such as `readfile`, `writefile`, `isfile`, `isfolder`, and `makefolder`, which Roblox does not provide as standard APIs. Alternatively, use host-owned callbacks or storage.
 
 ## A player selection disappears
 

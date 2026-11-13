@@ -2,9 +2,8 @@
 
 * [Introduction](README.md)
 
-## Getting started
+## Quick start
 
-* [Installation and first window](docs/getting-started.md)
 * [Quick start](docs/quick-start.md)
 * [Components overview](docs/components.md)
 
@@ -17,7 +16,6 @@
 * [Demo script](docs/demo.md)
 * [Themes and customization](docs/themes.md)
 * [State and localization](docs/state-and-localization.md)
-* [PNG images](docs/png-images.md)
 
 ## Reference
 

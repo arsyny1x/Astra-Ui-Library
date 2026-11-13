@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local ACCENT = Color3.fromRGB(129, 130, 255)
@@ -75,8 +74,12 @@ local THAI_TEXT = {
     ["Settings loaded"] = "โหลดการตั้งค่าแล้ว",
     ["Saved settings have been applied."] = "ใช้การตั้งค่าที่บันทึกไว้แล้ว",
     ["Interface components"] = "คอมโพเนนต์หน้าตา UI",
+    ["Console output"] = "ผลลัพธ์ Console",
+    ["Sample console messages from the dashboard."] = "ตัวอย่างข้อความ Console จากแดชบอร์ด",
+    ["Notification preview shown"] = "แสดงตัวอย่างการแจ้งเตือนแล้ว",
+    ["Demo status updated"] = "อัปเดตสถานะเดโมแล้ว",
     ["Built with Astra UI"] = "สร้างด้วย Astra UI",
-    ["This demo is composed from the library's Cards, Sections, controls, status messages, and notifications. It does not create custom Roblox UI elements."] = "เดโมนี้ประกอบด้วย Cards, Sections, controls, สถานะ และการแจ้งเตือนจากไลบรารี โดยไม่สร้าง UI ของ Roblox เอง",
+    ["This demo is composed from the library's Cards, Sections, controls, console, status messages, and notifications. It does not create custom Roblox UI elements."] = "เดโมนี้ประกอบด้วย Cards, Sections, controls, Console, สถานะ และการแจ้งเตือนจากไลบรารี โดยไม่สร้าง UI ของ Roblox เอง",
     ["Live session"] = "เซสชันสด",
     ["Show notification"] = "แสดงการแจ้งเตือน",
     ["Preview the dashboard notification style."] = "ดูตัวอย่างรูปแบบการแจ้งเตือนของแดชบอร์ด",
@@ -102,9 +105,9 @@ local window = AstraUI:CreateWindow({
     Title = "Astra Analytics",
     Subtitle = "Live experience dashboard",
     HeaderVersion = "v0.1.0",
-    Size = UDim2.fromOffset(800, 500),
+    Size = UDim2.fromOffset(760, 460),
     ToggleKey = Enum.KeyCode.RightShift,
-    RestoreImageUrl = "https://i.ibb.co/tMv26Nr5/hi-guys-im-collecting-lilith-pictures-i-hope-you-guys-can-v0-jbwkdcepgjgf1.png",
+    RestoreImageUrl = "https://i.ibb.co/Jjs7yZv3/hi-guys-im-collecting-lilith-pictures-i-hope-you-guys-can-v0-jbwkdcepgjgf1.jpg",
     Responsive = true,
     Resizable = true,
     Draggable = true,
@@ -113,6 +116,10 @@ local window = AstraUI:CreateWindow({
     },
     Localization = {
         Locale = "en-US",
+        Locales = {
+            ["en-US"] = {Name = "English", Translations = {}},
+            ["th-TH"] = {Name = "ไทย", Translations = {}},
+        },
         Resolve = function(locale, key, fallback)
             if string.sub(locale, 1, 2) == "th" then
                 return THAI_TEXT[key] or fallback
@@ -120,12 +127,27 @@ local window = AstraUI:CreateWindow({
             return fallback
         end,
     },
+    Settings = {
+        ProfileKey = "AstraAnalytics",
+        FilePath = "AstraUI/AstraAnalytics_Profile.json",
+    },
+    StatePersistence = {
+        Path = "AstraUI/AstraAnalytics_" .. tostring(game.PlaceId) .. ".json",
+        AutoSaveInterval = 1,
+    },
 })
 
 window:Search({
     Placeholder = "Search",
     Icon = "search",
 })
+
+local function demoText(text)
+    if string.sub(window.Localization.Locale, 1, 2) == "th" then
+        return THAI_TEXT[text] or text
+    end
+    return text
+end
 
 local dashboard = window:Tab({
     Id = "overview",
@@ -468,120 +490,22 @@ local stateCard = appearance:State({
     Icon = "circle-check",
 })
 
-local SETTINGS_FOLDER = "AstraUI"
-local SETTINGS_FILE = SETTINGS_FOLDER .. "/AstraAnalytics_" .. tostring(game.PlaceId) .. ".json"
-local lastSavedSettings
-
-local function checkFileApi()
-    if type(writefile) ~= "function"
-        or type(readfile) ~= "function"
-        or type(makefolder) ~= "function"
-        or type(isfolder) ~= "function"
-        or type(isfile) ~= "function" then
-        return false, "Required file APIs are unavailable in this environment."
-    end
-    return true
-end
-
-local function encodeSettings()
-    return HttpService:JSONEncode(window:GetState())
-end
-
-local function saveSettings()
-    local available, apiError = checkFileApi()
-    if not available then
-        return false, apiError
-    end
-    local ok, encodedOrError = pcall(encodeSettings)
-    if not ok then
-        return false, tostring(encodedOrError)
-    end
-    local encoded = encodedOrError
-    local writeOk, writeError = pcall(function()
-        if not isfolder(SETTINGS_FOLDER) then
-            makefolder(SETTINGS_FOLDER)
-        end
-        writefile(SETTINGS_FILE, encoded)
-    end)
-    if not writeOk then
-        return false, tostring(writeError)
-    end
-    lastSavedSettings = encoded
-    return true
-end
-
-local function loadSettings()
-    local available, apiError = checkFileApi()
-    if not available then
-        return false, apiError
-    end
-    local ok, stateOrError = pcall(function()
-        if not isfolder(SETTINGS_FOLDER) or not isfile(SETTINGS_FILE) then
-            return nil
-        end
-        return HttpService:JSONDecode(readfile(SETTINGS_FILE))
-    end)
-    if not ok then
-        return false, tostring(stateOrError)
-    end
-    local savedState = stateOrError
-    if savedState == nil then
-        return false, nil
-    end
-    if type(savedState) ~= "table" or type(savedState.Values) ~= "table" then
-        return false, "Saved settings file has an invalid format."
-    end
-    window:SetState(savedState)
-    sampleInterval = refreshIntervalControl:GetValue()
-    window:SetTheme({Accent = accentColorControl:GetValue()})
-    lastSavedSettings = encodeSettings()
-    return true
-end
-
-local _, loadError = loadSettings()
+local _, loadError = window:LoadStateFromFile()
 if loadError then
     warn("[AstraUI] Could not load saved settings: " .. loadError)
 end
-if not lastSavedSettings then
-    local encoded, stateOrError = pcall(encodeSettings)
-    if encoded then
-        lastSavedSettings = stateOrError
-    else
-        warn("[AstraUI] Could not prepare autosave: " .. tostring(stateOrError))
-    end
-end
-
-local autosaveAvailable, autosaveApiError = checkFileApi()
-if autosaveAvailable then
-    task.spawn(function()
-        while not window._destroyed do
-            task.wait(1)
-            if window._destroyed then
-                break
-            end
-            local encoded, currentSettings = pcall(encodeSettings)
-            if not encoded then
-                warn("[AstraUI] Autosave could not encode settings: " .. tostring(currentSettings))
-                break
-            end
-            if currentSettings ~= lastSavedSettings then
-                local saved, err = saveSettings()
-                if not saved then
-                    warn("[AstraUI] Autosave stopped: " .. tostring(err))
-                    break
-                end
-            end
-        end
-    end)
-else
-    warn("[AstraUI] Autosave unavailable: " .. tostring(autosaveApiError))
+sampleInterval = refreshIntervalControl:GetValue()
+window:SetTheme({Accent = accentColorControl:GetValue()})
+local autosaveStarted, autosaveError = window:StartStateAutoSave()
+if not autosaveStarted then
+    warn("[AstraUI] Autosave unavailable: " .. tostring(autosaveError))
 end
 
 appearance:Button({
     Name = "Save settings",
     Icon = "save",
     Callback = function()
-        local saved, err = saveSettings()
+        local saved, err = window:SaveStateToFile()
         if not saved then
             window:Notify({
                 Type = "Error",
@@ -602,7 +526,7 @@ appearance:Button({
     Name = "Load settings",
     Icon = "rotate-ccw",
     Callback = function()
-        local loaded, err = loadSettings()
+        local loaded, err = window:LoadStateFromFile()
         if not loaded then
             if err then
                 window:Notify({
@@ -619,6 +543,8 @@ appearance:Button({
             })
             return
         end
+        sampleInterval = refreshIntervalControl:GetValue()
+        window:SetTheme({Accent = accentColorControl:GetValue()})
         window:Notify({
             Type = "Success",
             Title = "Settings loaded",
@@ -634,8 +560,17 @@ local components = componentsTab:Section({
 
 components:Paragraph({
     Title = "Built with Astra UI",
-    Content = "This demo is composed from the library's Cards, Sections, controls, status messages, and notifications. It does not create custom Roblox UI elements.",
+    Content = "This demo is composed from the library's Cards, Sections, controls, console, status messages, and notifications. It does not create custom Roblox UI elements.",
 })
+
+local console = components:Console({
+    Name = "Console output",
+    Description = "Sample console messages from the dashboard.",
+    Height = 150,
+    MaxEntries = 50,
+})
+console:Log(demoText("Dashboard connected"), "Success")
+console:Log(demoText("Collecting player count samples..."))
 
 components:Badge({
     Text = "Live session",
@@ -649,6 +584,7 @@ components:Button({
     Description = "Preview the dashboard notification style.",
     Icon = "bell",
     Callback = function()
+        console:Log(demoText("Notification preview shown"))
         window:Notify({
             Type = "Info",
             Title = "Astra Analytics",
@@ -669,6 +605,7 @@ components:Accordion({
             notificationsToggle:SetValue(not notificationsToggle:GetValue())
             progress:SetValue(math.random(0, 100) / 100)
             stateCard:SetState("Success", "Demo status updated just now.")
+            console:Log(demoText("Demo status updated"), "Success")
         end,
     })
 end)

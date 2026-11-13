@@ -12,8 +12,8 @@ Astra UI is a reusable Roblox Luau UI library built with native Roblox GUI objec
 - Buttons, toggles, sliders, dropdowns, multi-select dropdowns, and player dropdowns
 - Inputs, keybinds, color pickers, progress indicators, status panels, and badges
 - Notifications, dialogs, localization hooks, and serializable window state
-- Optional PNG images for the floating window-toggle button and Lilith background
-- Bundled Luau PNG decoders with cooperative yielding
+- Optional PNG and JPEG images for the floating window-toggle button and Lilith background
+- Bundled Luau PNG and baseline JPEG decoders with cooperative yielding
 
 ## Files
 
@@ -22,13 +22,14 @@ Astra UI is a reusable Roblox Luau UI library built with native Roblox GUI objec
 | `main.lua` | Astra UI library; its current remote icon bootstrap requires `game:HttpGet` and `loadstring` |
 | `demo.lua` | Example dashboard using the library |
 | `png.luau` | PNG decoder with cooperative-yield support |
+| `jpeg.luau` | Baseline JPEG decoder with cooperative-yield support |
 | `UI_LIBRARY_SPEC.md` | Design and API specification |
 | `LICENSE` | MIT License |
 
 ## Requirements
 
 - The current remote icon bootstrap requires an executor or environment that supports `game:HttpGet` and `loadstring` (e.g. Potassium or another supported executor); a standard Roblox client `LocalScript` cannot load it as-is.
-- PNG rendering requires Roblox `EditableImage` support and the required experience/runtime permissions.
+- PNG and JPEG rendering requires Roblox `EditableImage` support and the required experience/runtime permissions.
 - The demo's settings save/load and autosave features use `readfile` / `writefile` — executor-provided APIs not available in a standard Roblox client.
 
 ## Installation
@@ -41,9 +42,9 @@ In a compatible executor or runtime, no Studio setup is needed:
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
 ```
 
-### PNG support
+### PNG and JPEG support
 
-The library loads its built-in PNG decoder automatically when an image is used. You only need to provide the image URL:
+The library detects PNG and baseline JPEG image data and loads the matching decoder automatically. You only need to provide the image URL:
 
 ```lua
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
@@ -54,7 +55,11 @@ local window = AstraUI:CreateWindow({
 })
 ```
 
-No separate `PngDecoder` or `PngDecoderUrl` configuration is needed. The built-in decoder exposes `decode(buffer, options)` and `supportsYieldIfNeeded = true`.
+No decoder configuration is needed for the bundled decoders. They expose `decode(buffer, options)` and `supportsYieldIfNeeded = true`.
+
+### JPEG decoder
+
+`jpeg.luau` decodes baseline 8-bit grayscale, RGB, and YCbCr JPEGs and is used by Astra UI's image loading. See the [JPEG decoder guide](docs/jpeg-images.md) for format limitations.
 
 ## Quick start
 
@@ -121,6 +126,7 @@ Create tabs with `window:Tab(config)`, sections with `tab:Section(config)`, and 
 - `Keybind`
 - `Colorpicker`
 - `Paragraph`
+- `Console`
 - `Divider`
 - `Progress`
 - `State` and `EmptyState`
@@ -156,22 +162,22 @@ window:SetTheme({
 
 Explicit accent overrides supplied in `CreateWindow.Theme` or later through `SetTheme` are retained when switching back from Lilith to Dark or Light.
 
-## Images and PNG support
+## Images: PNG and JPEG support
 
 `RestoreImageUrl` optionally supplies the image shown inside the floating window-toggle button. The Lilith theme has its own background artwork URL.
 
-To use a PNG image, set `RestoreImageUrl`; the library automatically loads its built-in decoder:
+Set `RestoreImageUrl` to a direct PNG or baseline JPEG URL; the library detects the file format and loads the matching decoder:
 
 ```lua
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
 
 local window = AstraUI:CreateWindow({
     Title = "My Dashboard",
-    RestoreImageUrl = "https://example.com/icon.png",
+    RestoreImageUrl = "https://example.com/icon.jpg",
 })
 ```
 
-The built-in decoder exposes `decode(buffer, options)` and `supportsYieldIfNeeded = true`. `PngDecoder` and `PngDecoderUrl` are optional overrides for custom decoders. Remote decoder loading requires an executor or runtime that provides `game:HttpGet` and `loadstring`, and is not suitable for a standard Roblox client. If an image cannot be loaded or decoded, the library warns and keeps the built-in toggle icon visible. PNG support depends on `EditableImage` availability and permissions in the target environment.
+The bundled decoders expose `decode(buffer, options)` and `supportsYieldIfNeeded = true`. `PngDecoder` / `PngDecoderUrl` and `JpegDecoder` / `JpegDecoderUrl` optionally override their respective decoders. JPEG support covers baseline 8-bit grayscale, RGB, and YCbCr images; progressive and CMYK JPEGs are not supported. Remote decoder loading requires an executor or runtime that provides `game:HttpGet` and `loadstring`. Image rendering requires `EditableImage` support and permissions in the target environment. If an image cannot be loaded or decoded, the library warns and keeps the built-in toggle icon visible.
 
 ## Window methods
 
@@ -181,9 +187,9 @@ The window handle includes:
 - `SetLocale(locale)`, `SetToggleKey(Enum.KeyCode)`, `SetResizable(boolean)`, `SetDraggable(boolean)`
 - `Notify(config)`, `Dialog(config)`, `OpenSettings()`
 - `SetHeaderVersion(stringOrNil)`, `SetDiscordLink(urlOrNil, copyCallback)`
-- `GetState()`, `SetState(stateTable)`, and `Destroy()`
+- `GetState()`, `SetState(stateTable)`, `SaveStateToFile()`, `LoadStateFromFile()`, `StartStateAutoSave()`, and `Destroy()`
 
-Use explicit IDs on controls and tabs that should be restored through `GetState()` and `SetState()`. The library does not write to a data store or filesystem; persistence belongs to the host experience.
+Use explicit IDs on controls and tabs that should be restored through the state methods. File persistence helpers require host-provided filesystem functions and do not write to a Roblox data store.
 
 ## Demo
 

@@ -125,8 +125,8 @@
 
     .sidebar-nav > p {
       margin: 20px 8px 7px;
-      color: #70809d;
-      font-size: 10px;
+      color: #91a0bb;
+      font-size: 11px;
       font-weight: 750;
       letter-spacing: 0.12em;
       line-height: 1.4;
@@ -145,12 +145,12 @@
     .sidebar-nav li a {
       display: flex;
       align-items: center;
-      min-height: 34px;
+      min-height: 36px;
       padding: 7px 10px;
       border: 0 !important;
       border-radius: 7px;
       color: #c1cce0 !important;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
       line-height: 1.45;
       transition: background 140ms ease, color 140ms ease, transform 140ms ease;
@@ -181,10 +181,10 @@
     }
 
     .sidebar-nav ul ul li a {
-      min-height: 30px;
+      min-height: 32px;
       padding: 6px 9px;
-      color: #8998b3 !important;
-      font-size: 11px;
+      color: #aab6cb !important;
+      font-size: 12px;
     }
 
     .sidebar-nav ul ul li.active > a {
@@ -232,10 +232,33 @@
 
     .markdown-section h1,
     .markdown-section h2,
-    .markdown-section h3 {
+    .markdown-section h3,
+    .markdown-section h4,
+    .markdown-section h5,
+    .markdown-section h6 {
       color: #f7f8ff !important;
       -webkit-text-fill-color: #f7f8ff;
       letter-spacing: -0.025em;
+    }
+
+    .markdown-section h1 a,
+    .markdown-section h3 a,
+    .markdown-section h4 a,
+    .markdown-section h5 a,
+    .markdown-section h6 a,
+    .markdown-section h1 a span,
+    .markdown-section h3 a span,
+    .markdown-section h4 a span,
+    .markdown-section h5 a span,
+    .markdown-section h6 a span {
+      color: #f7f8ff !important;
+      -webkit-text-fill-color: #f7f8ff;
+    }
+
+    .markdown-section h2 a,
+    .markdown-section h2 a span {
+      color: #edf0ff !important;
+      -webkit-text-fill-color: #edf0ff;
     }
 
     .markdown-section h1 {
@@ -351,22 +374,786 @@
         padding: 24px 20px 56px;
       }
     }
+
+    :root {
+      --docs-sidebar-width: 272px;
+      --docs-content-left: 300px;
+      --docs-topbar-height: 64px;
+      --astra-shell-bg: #0b1020;
+      --astra-shell-sidebar: #0e1424;
+      --astra-shell-surface: #111a2b;
+      --astra-shell-border: #26334b;
+      --astra-shell-text: #dce4f2;
+      --astra-shell-muted: #8492ac;
+      --astra-shell-accent: #9eafff;
+      --astra-shell-teal: #42c8bb;
+    }
+
+    .content {
+      left: var(--docs-content-left);
+      width: calc(100% - var(--docs-content-left));
+      padding-top: var(--docs-topbar-height);
+      transition: left 180ms ease, width 180ms ease;
+    }
+
+    .sidebar {
+      width: var(--docs-sidebar-width);
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .docs-topbar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      left: var(--docs-content-left);
+      z-index: 1003;
+      display: flex;
+      height: var(--docs-topbar-height);
+      align-items: center;
+      gap: 18px;
+      padding: 0 22px;
+      border-bottom: 1px solid rgba(133, 151, 190, 0.13);
+      background: rgba(11, 16, 32, 0.88);
+      backdrop-filter: blur(18px);
+      transition: left 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .sidebar-toggle-button,
+    .theme-toggle,
+    .topbar-github {
+      display: inline-flex;
+      height: 36px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid rgba(133, 151, 190, 0.2);
+      border-radius: 9px;
+      background: rgba(17, 26, 43, 0.7);
+      color: #dce4f2;
+      font: inherit;
+      font-size: 12px;
+      text-decoration: none;
+      transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+    }
+
+    .sidebar-toggle-button,
+    .theme-toggle {
+      cursor: pointer;
+    }
+
+    .sidebar-toggle-button {
+      width: 38px;
+      padding: 0;
+    }
+
+    .sidebar-toggle-button svg,
+    .theme-toggle svg,
+    .topbar-github svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.7;
+    }
+
+    .sidebar-toggle-button:hover,
+    .theme-toggle:hover,
+    .topbar-github:hover {
+      border-color: rgba(158, 175, 255, 0.48);
+      background: rgba(139, 156, 255, 0.12);
+      color: #ffffff;
+      text-decoration: none;
+    }
+
+    .topbar-breadcrumbs {
+      position: static;
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 9px;
+      overflow: hidden;
+      color: #7e8ba6;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .topbar-breadcrumbs a {
+      flex: 0 0 auto;
+      color: #9eafff;
+      text-decoration: none;
+    }
+
+    .topbar-breadcrumbs a:hover {
+      color: #c3ccff;
+    }
+
+    .topbar-breadcrumbs strong {
+      overflow: hidden;
+      color: #e4eafb;
+      font-weight: 600;
+      text-overflow: ellipsis;
+    }
+
+    .topbar-actions {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 9px;
+      margin-left: auto;
+    }
+
+    .topbar-github {
+      padding: 0 10px;
+    }
+
+    .theme-toggle {
+      padding: 0 10px;
+    }
+
+    .language-switcher {
+      position: static;
+      top: auto;
+      right: auto;
+      z-index: auto;
+    }
+
+    .language-switcher select {
+      height: 36px;
+      min-width: 104px;
+      border-color: rgba(133, 151, 190, 0.2);
+      border-radius: 9px;
+      background: rgba(17, 26, 43, 0.7);
+      color: #e4eafb;
+    }
+
+    .sidebar-footer {
+      order: 4;
+      display: flex;
+      flex: 0 0 auto;
+      flex-direction: column;
+      gap: 7px;
+      margin: 0 14px;
+      padding: 14px 8px 16px;
+      border-top: 1px solid #202b42;
+      color: #7786a1;
+      font-size: 11px;
+    }
+
+    .sidebar-footer a {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 7px;
+      color: #c3ccff;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .sidebar-footer a:hover {
+      color: #ffffff;
+    }
+
+    .sidebar-footer svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    .page-toc {
+      display: none;
+    }
+
+    .markdown-section {
+      box-sizing: border-box;
+      max-width: 1080px;
+      padding: 38px 40px 92px;
+    }
+
+    .markdown-section h1 {
+      margin-top: 14px;
+      margin-bottom: 18px;
+      font-size: clamp(2rem, 3.2vw, 2.65rem);
+      line-height: 1.15;
+      letter-spacing: -0.045em;
+    }
+
+    .markdown-section h2 {
+      margin-top: 2.5em;
+      font-size: 1.55rem;
+      letter-spacing: -0.03em;
+    }
+
+    .markdown-section h3 {
+      margin-top: 2em;
+      font-size: 1.2rem;
+    }
+
+    .markdown-section > h1 + p {
+      max-width: 760px;
+      margin-top: -6px;
+      color: #a5b1c8;
+      font-size: 1.08rem;
+      line-height: 1.7;
+    }
+
+    .markdown-section pre {
+      position: relative;
+      overflow: auto;
+      margin: 1.2em 0;
+      padding: 20px 18px 17px;
+      border: 1px solid #46536b;
+      border-radius: 14px;
+      background: #20232b !important;
+      box-shadow: none;
+    }
+
+    .markdown-section pre::before {
+      content: none;
+    }
+
+    .markdown-section pre code {
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: 14px !important;
+      line-height: 1.75;
+    }
+
+    .markdown-section .docsify-copy-code-button {
+      top: 8px;
+      right: 8px;
+      display: grid;
+      width: 30px;
+      min-width: 30px;
+      height: 30px;
+      padding: 0;
+      place-items: center;
+      border: 1px solid #3b4352;
+      border-radius: 8px;
+      background-color: #20232b;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c9d2e3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='8' y='8' width='12' height='12' rx='2'/%3E%3Cpath d='M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3'/%3E%3C/svg%3E");
+      background-position: center;
+      background-repeat: no-repeat;
+      color: transparent;
+      font-size: 0;
+      opacity: 1;
+    }
+
+    .markdown-section .docsify-copy-code-button:hover {
+      border-color: #8b9cff;
+      background-color: #2a3040;
+      opacity: 1;
+    }
+
+    .markdown-section blockquote {
+      border: 1px solid rgba(139, 156, 255, 0.14);
+      border-left: 3px solid #8b9cff;
+      border-radius: 0 10px 10px 0;
+      background: rgba(19, 27, 45, 0.72);
+    }
+
+    .markdown-section table {
+      overflow: hidden;
+      border: 1px solid #26334b;
+      border-radius: 11px;
+    }
+
+    .markdown-section th:first-child {
+      border-top-left-radius: 10px;
+    }
+
+    .markdown-section th:last-child {
+      border-top-right-radius: 10px;
+    }
+
+    .astra-code-tabs {
+      overflow: hidden;
+      margin: 1.35em 0;
+      padding: 6px;
+      border: 1px solid #3b455c;
+      border-radius: 15px;
+      background: linear-gradient(145deg, #0e1627, #0b1220);
+      box-shadow: none;
+    }
+
+    .astra-code-tabs-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 5px 6px;
+    }
+
+    .astra-code-tab {
+      position: relative;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #8998b3;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .astra-code-tab:hover {
+      background: rgba(139, 156, 255, 0.08);
+      color: #e4eafb;
+    }
+
+    .astra-code-tab[aria-selected="true"] {
+      color: #e4eafb;
+    }
+
+    .astra-code-tab[aria-selected="true"]::after {
+      position: absolute;
+      right: 10px;
+      bottom: 0;
+      left: 10px;
+      height: 2px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #9eafff, #42c8bb);
+      content: "";
+    }
+
+    .astra-code-single .astra-code-tabs-bar {
+      min-height: 36px;
+    }
+
+    .astra-code-single-label {
+      display: flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 0 12px;
+      color: #c1cce0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .astra-code-panel[hidden] {
+      display: none;
+    }
+
+    .astra-code-panel {
+      position: relative;
+    }
+
+    .astra-code-panel pre {
+      margin: 0;
+      border-color: #3b455c;
+      border-radius: 10px;
+      box-shadow: none;
+    }
+
+    .astra-code-single pre {
+      margin: 0;
+      border-color: #3b455c;
+      border-radius: 10px;
+      box-shadow: none;
+    }
+
+    html[data-doc-theme="light"] body,
+    html[data-doc-theme="light"] .content {
+      background: #f5f7fc;
+      color: #293247;
+    }
+
+    html[data-doc-theme="light"] .docs-topbar {
+      border-color: #e1e6f0;
+      background: rgba(248, 250, 254, 0.9);
+    }
+
+    html[data-doc-theme="light"] .sidebar {
+      border-color: #e1e6f0;
+      background: #ffffff;
+      color: #47516a;
+    }
+
+    html[data-doc-theme="light"] .sidebar .app-name {
+      border-color: #e8ecf4;
+    }
+
+    html[data-doc-theme="light"] .sidebar .app-name-link {
+      color: #1b2540 !important;
+    }
+
+    html[data-doc-theme="light"] .sidebar .search .input-wrap,
+    html[data-doc-theme="light"] .language-switcher select,
+    html[data-doc-theme="light"] .sidebar-toggle-button,
+    html[data-doc-theme="light"] .theme-toggle,
+    html[data-doc-theme="light"] .topbar-github {
+      border-color: #dce3ef;
+      background: #ffffff;
+      color: #33405c;
+    }
+
+    html[data-doc-theme="light"] .sidebar .search input {
+      color: #24304a;
+    }
+
+    html[data-doc-theme="light"] .sidebar .search input::placeholder,
+    html[data-doc-theme="light"] .sidebar-nav > p,
+    html[data-doc-theme="light"] .sidebar-footer {
+      color: #7a859a;
+    }
+
+    html[data-doc-theme="light"] .sidebar-nav li a {
+      color: #47516a !important;
+    }
+
+    html[data-doc-theme="light"] .sidebar-nav li a:hover,
+    html[data-doc-theme="light"] .sidebar-nav li.active > a {
+      background: rgba(113, 130, 244, 0.09);
+      color: #4b5ac3 !important;
+    }
+
+    html[data-doc-theme="light"] .sidebar-footer {
+      border-color: #e8ecf4;
+    }
+
+    html[data-doc-theme="light"] .topbar-breadcrumbs strong {
+      color: #25304a;
+    }
+
+    html[data-doc-theme="light"] .topbar-breadcrumbs a,
+    html[data-doc-theme="light"] .sidebar-footer a {
+      color: #5969d6;
+    }
+
+    html[data-doc-theme="light"] .markdown-section h1,
+    html[data-doc-theme="light"] .markdown-section h2,
+    html[data-doc-theme="light"] .markdown-section h3,
+    html[data-doc-theme="light"] .markdown-section h4,
+    html[data-doc-theme="light"] .markdown-section h5,
+    html[data-doc-theme="light"] .markdown-section h6 {
+      color: #1e2943 !important;
+      -webkit-text-fill-color: #1e2943;
+    }
+
+    html[data-doc-theme="light"] .markdown-section h1 a,
+    html[data-doc-theme="light"] .markdown-section h2 a,
+    html[data-doc-theme="light"] .markdown-section h3 a,
+    html[data-doc-theme="light"] .markdown-section h4 a,
+    html[data-doc-theme="light"] .markdown-section h5 a,
+    html[data-doc-theme="light"] .markdown-section h6 a,
+    html[data-doc-theme="light"] .markdown-section h1 a span,
+    html[data-doc-theme="light"] .markdown-section h2 a span,
+    html[data-doc-theme="light"] .markdown-section h3 a span,
+    html[data-doc-theme="light"] .markdown-section h4 a span,
+    html[data-doc-theme="light"] .markdown-section h5 a span,
+    html[data-doc-theme="light"] .markdown-section h6 a span {
+      color: #1e2943 !important;
+      -webkit-text-fill-color: #1e2943;
+    }
+
+    html[data-doc-theme="light"] .markdown-section p,
+    html[data-doc-theme="light"] .markdown-section li {
+      color: #3e4a63;
+    }
+
+    html[data-doc-theme="light"] .markdown-section strong {
+      color: #27344e;
+    }
+
+    html[data-doc-theme="light"] .markdown-section a {
+      color: #5667d8;
+    }
+
+    html[data-doc-theme="light"] .markdown-section code {
+      background: #e9edf7;
+      color: #34415d;
+    }
+
+    html[data-doc-theme="light"] .markdown-section pre,
+    html[data-doc-theme="light"] .astra-code-tabs,
+    html[data-doc-theme="light"] .astra-code-panel pre {
+      border-color: #c4ccda;
+      background: #20232b !important;
+      box-shadow: none;
+    }
+
+    html[data-doc-theme="light"] .markdown-section pre code {
+      color: #e4eafb !important;
+    }
+
+    html[data-doc-theme="light"] .markdown-section pre::before {
+      content: none;
+    }
+
+    html[data-doc-theme="light"] .markdown-section .docsify-copy-code-button {
+      border-color: #454d5c;
+      background-color: #20232b;
+    }
+
+    html[data-doc-theme="light"] .astra-code-tab {
+      color: #68748a;
+    }
+
+    html[data-doc-theme="light"] .astra-code-single-label {
+      color: #47516a;
+    }
+
+    html[data-doc-theme="light"] .astra-code-tab[aria-selected="true"] {
+      color: #394b9c;
+    }
+
+    html[data-doc-theme="light"] .page-toc {
+      border-left-color: #dbe2ef;
+      color: #56627a;
+    }
+
+    html[data-doc-theme="light"] .page-toc-title {
+      color: #27344e;
+    }
+
+    html[data-doc-theme="light"] .page-toc a {
+      color: #56627a;
+    }
+
+    html[data-doc-theme="light"] .page-toc a[data-level="3"] {
+      color: #74819a;
+    }
+
+    html[data-doc-theme="light"] .page-toc a:hover {
+      color: #394b9c;
+    }
+
+    html[data-doc-theme="light"] .markdown-section blockquote {
+      border-color: #dfe5f1;
+      border-left-color: #7182f4;
+      background: #eef1fa;
+    }
+
+    html[data-doc-theme="light"] .markdown-section th {
+      background: #e9edf7;
+      color: #29364f;
+    }
+
+    html[data-doc-theme="light"] .markdown-section td {
+      border-color: #e1e6f0;
+      background: #ffffff;
+      color: #3e4a63;
+    }
+
+    html[data-doc-theme="light"] .markdown-section tr:nth-child(odd) td {
+      background: #f7f8fc;
+    }
+
+    .page-toc {
+      position: fixed;
+      top: 100px;
+      right: 28px;
+      z-index: 5;
+      width: 190px;
+      max-height: calc(100vh - 124px);
+      overflow-y: auto;
+      padding: 0 0 16px 14px;
+      border-left: 1px solid rgba(133, 151, 190, 0.16);
+      color: #aab8cf;
+    }
+
+    .page-toc.is-visible {
+      display: none;
+    }
+
+    .page-toc-title {
+      margin: 0 0 11px;
+      color: #f3f6fc;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .page-toc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .page-toc a {
+      display: block;
+      padding: 5px 0;
+      color: #b4c0d5;
+      font-size: 11px;
+      line-height: 1.45;
+      text-decoration: none;
+    }
+
+    .page-toc a[data-level="3"] {
+      padding-left: 10px;
+      color: #9aa9c2;
+    }
+
+    .page-toc a:hover {
+      color: #d0d8ff;
+    }
+
+    body.sidebar-collapsed .sidebar {
+      transform: translateX(-100%);
+    }
+
+    body.sidebar-collapsed .content {
+      left: 0;
+      width: 100%;
+    }
+
+    body.sidebar-collapsed .docs-topbar {
+      left: 0;
+    }
+
+    .sidebar-toggle {
+      display: none !important;
+    }
+
+    @media (min-width: 1540px) {
+      .content {
+        width: calc(100% - var(--docs-content-left) - 240px);
+      }
+
+      .page-toc.is-visible {
+        display: block;
+      }
+
+      body.sidebar-collapsed .content {
+        width: calc(100% - 240px);
+      }
+    }
+
+    @media (max-width: 768px) {
+      :root {
+        --docs-topbar-height: 58px;
+      }
+
+      html body .content,
+      html body.sidebar-collapsed .content {
+        left: 0 !important;
+        width: 100% !important;
+      }
+
+      html body .docs-topbar,
+      html body.sidebar-collapsed .docs-topbar {
+        right: 0 !important;
+        left: 0 !important;
+        width: auto !important;
+        gap: 10px;
+        padding: 0 12px;
+      }
+
+      html body.ready.sticky .content {
+        left: 0 !important;
+        width: 100% !important;
+      }
+
+      html body.ready .docs-topbar {
+        left: 0 !important;
+        right: 0 !important;
+        width: auto !important;
+      }
+
+      .sidebar {
+        z-index: 1002;
+        left: 0 !important;
+        width: min(272px, 84vw);
+        transform: translateX(-100%);
+      }
+
+      body.sidebar-open .sidebar {
+        transform: translateX(0);
+      }
+
+      .markdown-section {
+        padding: 25px 20px 64px;
+      }
+
+      .markdown-section h1 {
+        font-size: 2rem;
+      }
+
+      .page-toc,
+      .topbar-github,
+      .theme-toggle span {
+        display: none !important;
+      }
+
+      .topbar-breadcrumbs {
+        gap: 5px;
+        font-size: 11px;
+      }
+
+      .topbar-actions {
+        gap: 6px;
+      }
+
+      .theme-toggle {
+        width: 36px;
+        padding: 0;
+      }
+
+      .language-switcher select {
+        min-width: 88px;
+        padding: 0 7px;
+        font-size: 11px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 <body>
   <div id="app">Loading Astra UI docs...</div>
-  <div class="language-switcher">
-    <select id="language-select" aria-label="Language / ภาษา" title="Language / ภาษา">
-      <option value="en">English</option>
-      <option value="th">ไทย</option>
-    </select>
-  </div>
+  <header class="docs-topbar">
+    <button id="sidebar-toggle" class="sidebar-toggle-button" type="button" aria-label="Toggle navigation" aria-expanded="true" title="Toggle navigation">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 6h16M4 12h16M4 18h16"></path>
+      </svg>
+    </button>
+    <nav class="topbar-breadcrumbs" aria-label="Breadcrumb">
+      <a id="breadcrumb-home" href="#/README">Docs</a>
+      <span aria-hidden="true">/</span>
+      <span id="breadcrumb-section">Guide</span>
+      <span aria-hidden="true">/</span>
+      <strong id="breadcrumb-page">Astra UI</strong>
+    </nav>
+    <div class="topbar-actions">
+      <a class="topbar-github" href="https://github.com/arsyny1x/Astra-Ui-Library" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 19c-4.3 1.4-4.3-2.2-6-2.5M15 21v-3.1a2.7 2.7 0 0 0-.8-2.1c2.7-.3 5.5-1.3 5.5-6a4.7 4.7 0 0 0-1.2-3.2 4.3 4.3 0 0 0-.1-3.2s-1-.3-3.4 1.2a11.8 11.8 0 0 0-6.1 0C6.5 3.1 5.5 3.4 5.5 3.4a4.3 4.3 0 0 0-.1 3.2 4.7 4.7 0 0 0-1.2 3.3c0 4.7 2.8 5.7 5.5 6A2.7 2.7 0 0 0 9 18v3"></path>
+        </svg>
+        <span>GitHub</span>
+      </a>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch to light theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"></path>
+        </svg>
+        <span>Light</span>
+      </button>
+      <div class="language-switcher">
+        <select id="language-select" aria-label="Language / ภาษา" title="Language / ภาษา">
+          <option value="en">English</option>
+          <option value="th">ไทย</option>
+        </select>
+      </div>
+    </div>
+  </header>
+  <aside id="page-toc" class="page-toc" aria-label="On this page"></aside>
   <script>
     window.$docsify = {
       name: "Astra UI",
       repo: "",
       loadSidebar: true,
-      subMaxLevel: 3,
+      subMaxLevel: 0,
       auto2top: true,
       relativePath: true,
       alias: {
@@ -408,6 +1195,9 @@
   <script>
     (function() {
       var languageSelect = document.getElementById("language-select");
+      var themeToggle = document.getElementById("theme-toggle");
+      var sidebarToggle = document.getElementById("sidebar-toggle");
+      var pageToc = document.getElementById("page-toc");
 
       function updateLanguageUi(isThai) {
         var searchPlaceholder = isThai ? "ค้นหาเอกสาร" : "Search the docs";
@@ -459,6 +1249,209 @@
             var text = isThai ? "ถัดไป" : "Next";
             if (label.textContent !== text) label.textContent = text;
           });
+
+        updateThemeToggle(isThai);
+      }
+
+      function updateThemeToggle(isThai) {
+        var isLight = document.documentElement.getAttribute("data-doc-theme") === "light";
+        var label = isLight
+          ? (isThai ? "เปลี่ยนเป็นธีมมืด" : "Switch to dark theme")
+          : (isThai ? "เปลี่ยนเป็นธีมสว่าง" : "Switch to light theme");
+        var mode = isLight
+          ? (isThai ? "มืด" : "Dark")
+          : (isThai ? "สว่าง" : "Light");
+        var modeLabel = themeToggle.querySelector("span");
+
+        if (themeToggle.getAttribute("aria-label") !== label) {
+          themeToggle.setAttribute("aria-label", label);
+        }
+        if (themeToggle.title !== label) {
+          themeToggle.title = label;
+        }
+        if (modeLabel && modeLabel.textContent !== mode) {
+          modeLabel.textContent = mode;
+        }
+      }
+
+      function updateSidebarFooter(isThai) {
+        var sidebar = document.querySelector(".sidebar");
+        if (!sidebar) return;
+
+        var footer = sidebar.querySelector(".sidebar-footer");
+        if (!footer) {
+          footer = document.createElement("div");
+          footer.className = "sidebar-footer";
+
+          var link = document.createElement("a");
+          link.href = "https://github.com/arsyny1x/Astra-Ui-Library";
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          footer.appendChild(link);
+
+          var caption = document.createElement("span");
+          caption.className = "sidebar-footer-caption";
+          footer.appendChild(caption);
+          sidebar.appendChild(footer);
+        }
+
+        var link = footer.querySelector("a");
+        var caption = footer.querySelector(".sidebar-footer-caption");
+        var linkText = isThai ? "ดูโปรเจกต์บน GitHub" : "View project on GitHub";
+        var captionText = isThai ? "เอกสาร Astra UI" : "Astra UI documentation";
+        if (link.textContent !== linkText) link.textContent = linkText;
+        if (caption.textContent !== captionText) caption.textContent = captionText;
+      }
+
+      function updatePageToc(isThai) {
+        var article = document.querySelector(".markdown-section");
+        var headings = article ? Array.prototype.slice.call(article.querySelectorAll("h2, h3")) : [];
+        var items = headings.map(function(heading) {
+          var anchor = heading.querySelector("a");
+          return {
+            level: heading.tagName === "H3" ? "3" : "2",
+            label: (anchor ? anchor.textContent : heading.textContent).trim(),
+            href: anchor ? anchor.getAttribute("href") : ("#" + heading.id)
+          };
+        });
+        var signature = (isThai ? "th|" : "en|") + items.map(function(item) {
+          return item.level + ":" + item.label + ":" + item.href;
+        }).join("|");
+
+        if (pageToc.getAttribute("data-signature") === signature) return;
+        pageToc.setAttribute("data-signature", signature);
+        pageToc.setAttribute("aria-label", isThai ? "ในหน้านี้" : "On this page");
+        pageToc.textContent = "";
+
+        if (items.length < 2) {
+          pageToc.classList.remove("is-visible");
+          return;
+        }
+
+        var title = document.createElement("p");
+        title.className = "page-toc-title";
+        title.textContent = isThai ? "ในหน้านี้" : "On this page";
+
+        var list = document.createElement("nav");
+        list.className = "page-toc-list";
+        list.setAttribute("aria-label", title.textContent);
+
+        items.forEach(function(item) {
+          var link = document.createElement("a");
+          link.href = item.href;
+          link.textContent = item.label;
+          link.setAttribute("data-level", item.level);
+          list.appendChild(link);
+        });
+
+        pageToc.appendChild(title);
+        pageToc.appendChild(list);
+        pageToc.classList.add("is-visible");
+      }
+
+      function updateBreadcrumbs(isThai) {
+        var home = document.getElementById("breadcrumb-home");
+        var section = document.getElementById("breadcrumb-section");
+        var page = document.getElementById("breadcrumb-page");
+        var activeLink = document.querySelector(".sidebar-nav li.active > a");
+        var heading = document.querySelector(".markdown-section h1");
+        var title = heading ? heading.textContent.trim() : (isThai ? "เอกสาร" : "Documentation");
+        var group = "";
+
+        if (activeLink) {
+          var list = activeLink.parentElement.closest("ul");
+          while (list && list.parentElement && !list.previousElementSibling) {
+            list = list.parentElement.closest("ul");
+          }
+          var groupHeading = list && list.previousElementSibling;
+          if (groupHeading && groupHeading.tagName === "P") {
+            group = groupHeading.textContent.trim();
+          }
+        }
+
+        if (!group) group = isThai ? "เอกสาร" : "Documentation";
+        if (home.textContent !== (isThai ? "เอกสาร" : "Docs")) {
+          home.textContent = isThai ? "เอกสาร" : "Docs";
+        }
+        if (section.textContent !== group) section.textContent = group;
+        if (page.textContent !== title) page.textContent = title;
+      }
+
+      function frameStandaloneCodeBlocks() {
+        var codeBlocks = document.querySelectorAll(".markdown-section pre");
+        Array.prototype.forEach.call(codeBlocks, function(pre) {
+          if (pre.closest(".astra-code-tabs")) return;
+
+          var language = pre.getAttribute("data-lang") || "code";
+          var frame = document.createElement("div");
+          frame.className = "astra-code-tabs astra-code-single";
+          frame.setAttribute("role", "group");
+          frame.setAttribute("aria-label", language + " code sample");
+
+          var bar = document.createElement("div");
+          bar.className = "astra-code-tabs-bar";
+
+          var label = document.createElement("span");
+          label.className = "astra-code-single-label";
+          label.textContent = language;
+          bar.appendChild(label);
+
+          pre.parentNode.insertBefore(frame, pre);
+          frame.appendChild(bar);
+          frame.appendChild(pre);
+        });
+      }
+
+      function highlightCodeBlocks() {
+        var prism = window.Prism;
+        if (!prism || !prism.languages) return;
+
+        var codeBlocks = document.querySelectorAll(".markdown-section pre code");
+        Array.prototype.forEach.call(codeBlocks, function(code) {
+          if (code.querySelector(".token")) return;
+
+          var languageClass = code.className.match(/(?:^|\s)(?:lang|language)-([\w-]+)/);
+          if (!languageClass || !prism.languages[languageClass[1]]) return;
+
+          prism.highlightElement(code);
+        });
+      }
+
+      function updateDocsShell(isThai) {
+        frameStandaloneCodeBlocks();
+        highlightCodeBlocks();
+        updateSidebarFooter(isThai);
+        updateBreadcrumbs(isThai);
+        updatePageToc(isThai);
+        syncResponsiveLayout();
+      }
+
+      function syncResponsiveLayout() {
+        var content = document.querySelector(".content");
+        var topbar = document.querySelector(".docs-topbar");
+        if (!content || !topbar) return;
+
+        var isMobile = window.matchMedia("(max-width: 768px)").matches;
+        var isWide = window.matchMedia("(min-width: 1540px)").matches;
+        var isCollapsed = document.body.classList.contains("sidebar-collapsed");
+        var contentLeft = isMobile || isCollapsed ? "0" : "var(--docs-content-left)";
+        var contentWidth;
+
+        if (isMobile) {
+          contentWidth = "100%";
+        } else if (isWide) {
+          contentWidth = isCollapsed ? "calc(100% - 240px)" : "calc(100% - var(--docs-content-left) - 240px)";
+        } else {
+          contentWidth = isCollapsed ? "100%" : "calc(100% - var(--docs-content-left))";
+        }
+
+        content.style.setProperty("left", contentLeft, "important");
+        content.style.setProperty("width", contentWidth, "important");
+        topbar.style.setProperty("left", contentLeft, "important");
+        topbar.style.setProperty("right", "0", "important");
+        topbar.style.setProperty("width", "auto", "important");
+        content.style.setProperty("transition", "none", "important");
+        topbar.style.setProperty("transition", "none", "important");
       }
 
       function syncLanguage() {
@@ -466,6 +1459,7 @@
         var isThai = route === "/readme.th" || route.indexOf("/docs/th/") === 0;
         languageSelect.value = isThai ? "th" : "en";
         updateLanguageUi(isThai);
+        updateDocsShell(isThai);
       }
 
       window.updateDocsLanguage = syncLanguage;
@@ -496,8 +1490,59 @@
         }
       });
 
+      themeToggle.addEventListener("click", function() {
+        var isLight = document.documentElement.getAttribute("data-doc-theme") === "light";
+        document.documentElement.setAttribute("data-doc-theme", isLight ? "dark" : "light");
+        updateThemeToggle(document.documentElement.lang === "th");
+      });
+
+      sidebarToggle.addEventListener("click", function() {
+        var isMobile = window.matchMedia("(max-width: 768px)").matches;
+        var className = isMobile ? "sidebar-open" : "sidebar-collapsed";
+        var isOpen = document.body.classList.toggle(className);
+        sidebarToggle.setAttribute("aria-expanded", String(isMobile ? isOpen : !isOpen));
+        syncResponsiveLayout();
+      });
+
+      document.body.addEventListener("click", function(event) {
+        var tab = event.target.closest("[data-code-tab]");
+        if (tab) {
+          var group = tab.closest("[data-code-tabs]");
+          var selectedTab = tab.getAttribute("data-code-tab");
+          group.querySelectorAll("[data-code-tab]").forEach(function(button) {
+            var selected = button === tab;
+            button.setAttribute("aria-selected", String(selected));
+            button.tabIndex = selected ? 0 : -1;
+          });
+          group.querySelectorAll("[data-code-panel]").forEach(function(panel) {
+            panel.hidden = panel.getAttribute("data-code-panel") !== selectedTab;
+          });
+          return;
+        }
+
+        if (window.matchMedia("(max-width: 768px)").matches
+            && event.target.closest(".sidebar-nav a")) {
+          document.body.classList.remove("sidebar-open");
+          sidebarToggle.setAttribute("aria-expanded", "false");
+        }
+      });
+
+      document.body.addEventListener("keydown", function(event) {
+        var activeTab = event.target.closest("[data-code-tab]");
+        if (!activeTab || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+
+        var tabs = Array.prototype.slice.call(activeTab.closest("[role=tablist]").querySelectorAll("[data-code-tab]"));
+        var index = tabs.indexOf(activeTab);
+        var direction = event.key === "ArrowRight" ? 1 : -1;
+        tabs[(index + direction + tabs.length) % tabs.length].click();
+        tabs[(index + direction + tabs.length) % tabs.length].focus();
+        event.preventDefault();
+      });
+
       window.addEventListener("hashchange", syncLanguage);
+      window.addEventListener("resize", syncResponsiveLayout);
       syncLanguage();
+      syncResponsiveLayout();
 
       if (window.MutationObserver && document.body) {
         var languageUpdateTimer;

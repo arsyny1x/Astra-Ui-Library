@@ -1,98 +1,18 @@
 # ตัวอย่างฉบับเต็ม
 
-ตัวอย่างนี้แสดงรูปแบบการประกอบ UI ของไลบรารี ตั้งแต่โหลดด้วย `loadstring` ต้องใช้ executor หรือ runtime ที่รองรับ `game:HttpGet` และ `loadstring` เนื่องจาก bootstrap ไอคอนปัจจุบันไม่รองรับ `LocalScript` ใน Roblox client มาตรฐาน ดู [การเริ่มต้นใช้งาน](getting-started.md)
+ตัวอย่างนี้แสดงรูปแบบการประกอบ UI ของไลบรารี ตั้งแต่โหลดด้วย `loadstring` ต้องใช้ executor หรือ runtime ที่รองรับ `game:HttpGet` และ `loadstring` เนื่องจาก bootstrap ไอคอนปัจจุบันไม่รองรับ `LocalScript` ใน Roblox client มาตรฐาน ดู[เริ่มต้นอย่างรวดเร็ว](quick-start.md)
 
-```lua
-local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
-
-local window = AstraUI:CreateWindow({
-    Title = "Session Dashboard",
-    Subtitle = "My experience",
-    Size = UDim2.fromOffset(800, 500),
-    ToggleKey = Enum.KeyCode.RightShift,
-    Theme = {
-        Accent = Color3.fromRGB(129, 130, 255),
-        AccentSecondary = Color3.fromRGB(46, 211, 159),
-    },
-})
-
-local overview = window:Tab({
-    Id = "overview",
-    Name = "Overview",
-    Category = "Dashboard",
-    Icon = "house",
-})
-
-local online = overview:Card({
-    Id = "online",
-    Title = "Players online",
-    Value = #game:GetService("Players"):GetPlayers(),
-    Description = "Players in the current server.",
-    Icon = "users",
-})
-
-local settings = overview:Section({
-    Name = "Preferences",
-    Side = "Left",
-})
-
-local notifications = settings:Toggle({
-    Id = "notifications",
-    Name = "Notifications",
-    Default = true,
-    Callback = function(enabled)
-        print("Notifications:", enabled)
-    end,
-})
-
-settings:Slider({
-    Id = "volume",
-    Name = "Volume",
-    Min = 0,
-    Max = 1,
-    Step = 0.05,
-    Default = 0.5,
-    Callback = function(value)
-        print("Volume:", value)
-    end,
-})
-
-settings:Dropdown({
-    Id = "quality",
-    Name = "Quality",
-    Options = {"Low", "Medium", "High"},
-    Default = "Medium",
-})
-
-local status = overview:Section({
-    Name = "Session",
-    Side = "Right",
-})
-
-local connection = status:State({
-    Id = "connection-status",
-    Type = "Success",
-    Title = "Connected",
-    Description = "The session is ready.",
-    Icon = "circle-check",
-})
-
-status:Button({
-    Name = "Refresh",
-    Callback = function()
-        online:SetValue(#game:GetService("Players"):GetPlayers())
-        connection:SetState("Success", "Updated just now.")
-        if notifications:GetValue() then
-            window:Notify({
-                Type = "Info",
-                Title = "Updated",
-                Content = "Dashboard values refreshed.",
-            })
-        end
-    end,
-})
-
-window:Search({Placeholder = "Search tabs", Icon = "search"})
-```
+<div class="astra-code-tabs" data-code-tabs>
+  <div class="astra-code-tabs-bar" role="tablist" aria-label="ตัวอย่างโค้ด">
+    <button class="astra-code-tab" type="button" role="tab" id="dashboard-full-tab" aria-controls="dashboard-full-panel" aria-selected="true" tabindex="0" data-code-tab="full">ตัวอย่างเต็ม</button>
+    <button class="astra-code-tab" type="button" role="tab" id="dashboard-short-tab" aria-controls="dashboard-short-panel" aria-selected="false" tabindex="-1" data-code-tab="short">ตัวอย่างย่อ</button>
+  </div>
+  <div class="astra-code-panel" id="dashboard-full-panel" role="tabpanel" aria-labelledby="dashboard-full-tab" data-code-panel="full">
+    <pre data-lang="lua"><code class="language-lua">local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()&#10;&#10;local window = AstraUI:CreateWindow({&#10;    Title = "Session Dashboard",&#10;    Subtitle = "My experience",&#10;    Size = UDim2.fromOffset(800, 500),&#10;    ToggleKey = Enum.KeyCode.RightShift,&#10;    Theme = {&#10;        Accent = Color3.fromRGB(129, 130, 255),&#10;        AccentSecondary = Color3.fromRGB(46, 211, 159),&#10;    },&#10;})&#10;&#10;local overview = window:Tab({&#10;    Id = "overview",&#10;    Name = "Overview",&#10;    Category = "Dashboard",&#10;    Icon = "house",&#10;})&#10;&#10;local online = overview:Card({&#10;    Id = "online",&#10;    Title = "Players online",&#10;    Value = #game:GetService("Players"):GetPlayers(),&#10;    Description = "Players in the current server.",&#10;    Icon = "users",&#10;})&#10;&#10;local settings = overview:Section({&#10;    Name = "Preferences",&#10;    Side = "Left",&#10;})&#10;&#10;local notifications = settings:Toggle({&#10;    Id = "notifications",&#10;    Name = "Notifications",&#10;    Default = true,&#10;    Callback = function(enabled)&#10;        print("Notifications:", enabled)&#10;    end,&#10;})&#10;&#10;settings:Slider({&#10;    Id = "volume",&#10;    Name = "Volume",&#10;    Min = 0,&#10;    Max = 1,&#10;    Step = 0.05,&#10;    Default = 0.5,&#10;    Callback = function(value)&#10;        print("Volume:", value)&#10;    end,&#10;})&#10;&#10;settings:Dropdown({&#10;    Id = "quality",&#10;    Name = "Quality",&#10;    Options = {"Low", "Medium", "High"},&#10;    Default = "Medium",&#10;})&#10;&#10;local status = overview:Section({&#10;    Name = "Session",&#10;    Side = "Right",&#10;})&#10;&#10;local connection = status:State({&#10;    Id = "connection-status",&#10;    Type = "Success",&#10;    Title = "Connected",&#10;    Description = "The session is ready.",&#10;    Icon = "circle-check",&#10;})&#10;&#10;status:Button({&#10;    Name = "Refresh",&#10;    Callback = function()&#10;        online:SetValue(#game:GetService("Players"):GetPlayers())&#10;        connection:SetState("Success", "Updated just now.")&#10;        if notifications:GetValue() then&#10;            window:Notify({&#10;                Type = "Info",&#10;                Title = "Updated",&#10;                Content = "Dashboard values refreshed.",&#10;            })&#10;        end&#10;    end,&#10;})&#10;&#10;window:Search({Placeholder = "Search tabs", Icon = "search"})</code></pre>
+  </div>
+  <div class="astra-code-panel" id="dashboard-short-panel" role="tabpanel" aria-labelledby="dashboard-short-tab" data-code-panel="short" hidden>
+    <pre data-lang="lua"><code class="language-lua">local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()&#10;local window = AstraUI:CreateWindow({Title = "แดชบอร์ดเซสชัน"})&#10;local tab = window:Tab({Name = "Overview"})&#10;local settings = tab:Section({Name = "Preferences"})&#10;settings:Toggle({Name = "Notifications", Default = true})&#10;settings:Slider({Name = "Volume", Min = 0, Max = 1, Default = 0.5})&#10;settings:Dropdown({Name = "Quality", Options = {"Low", "Medium", "High"}})</code></pre>
+  </div>
+</div>
 
 ไลบรารี UI มีหน้าที่สร้างส่วนติดต่อเท่านั้น ให้เชื่อม callback เข้ากับตรรกะเกมที่คุณเป็นเจ้าของ และตรวจสอบการกระทำของเกมที่เซิร์ฟเวอร์เป็นผู้มีอำนาจบนเซิร์ฟเวอร์เสมอ
