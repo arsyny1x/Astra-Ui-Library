@@ -15,7 +15,7 @@ local ICON_LIBRARY_URLS = {
 }
 local DEFAULT_PNG_DECODER_URL = "https://raw.githubusercontent.com/arsyny1x/luau-png/refs/heads/main/png.luau"
 local DEFAULT_JPEG_DECODER_URL = "https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/jpeg.luau"
-local LILITH_BACKGROUND_URL = "https://i.ibb.co/20dLB0dc/0074aa3e1434937e307545db8881065878c16ecc-1.jpg"
+local LILITH_BACKGROUND_URL = "https://i.ibb.co/sk4YSdj/0074aa3e1434937e307545db8881065878c16ecc.png"
 local loadRestoreImage
 
 local function loadIconLibrary(url, name)
