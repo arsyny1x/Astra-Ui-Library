@@ -4,7 +4,7 @@
 
 This example requires an executor or runtime that provides `game:HttpGet` and `loadstring`. The current library downloads and executes its icon libraries during loading, so it cannot be used directly from a standard Roblox client `LocalScript`.
 
-- Image URLs must point directly to a PNG or baseline JPEG under 8 MB and no larger than 4096 x 4096 pixels. Roblox also requires `EditableImage` support and the relevant permissions.
+- Image URLs must point directly to a PNG or supported baseline/progressive JPEG under 8 MB and no larger than 4096 x 4096 pixels. Roblox also requires `EditableImage` support and the relevant permissions.
 - The demo's built-in JSON persistence requires host-provided file APIs such as `readfile` / `writefile`.
 
 ## Build a window

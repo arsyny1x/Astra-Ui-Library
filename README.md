@@ -13,7 +13,7 @@ Astra UI is a reusable Roblox Luau UI library built with native Roblox GUI objec
 - Inputs, keybinds, color pickers, progress indicators, status panels, and badges
 - Notifications, dialogs, localization hooks, and serializable window state
 - Optional PNG and JPEG images for the floating window-toggle button and Lilith background
-- Bundled Luau PNG and baseline JPEG decoders with cooperative yielding
+- Bundled Luau PNG and baseline/progressive JPEG decoders with cooperative yielding
 
 ## Files
 
@@ -44,7 +44,7 @@ local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyn
 
 ### PNG and JPEG support
 
-The library detects PNG and baseline JPEG image data and loads the matching decoder automatically. You only need to provide the image URL:
+The library detects PNG and baseline or progressive JPEG image data and loads the matching decoder automatically. You only need to provide the image URL:
 
 ```lua
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
@@ -59,7 +59,7 @@ No decoder configuration is needed for the bundled decoders. They expose `decode
 
 ### JPEG decoder
 
-`jpeg.luau` decodes baseline 8-bit grayscale, RGB, and YCbCr JPEGs and is used by Astra UI's image loading. See the [JPEG decoder guide](docs/jpeg-images.md) for format limitations.
+`jpeg.luau` decodes baseline and progressive 8-bit grayscale, RGB, and YCbCr JPEGs and is used by Astra UI's image loading. See the [JPEG decoder guide](docs/jpeg-images.md) for format limitations.
 
 ## Quick start
 
@@ -166,7 +166,7 @@ Explicit accent overrides supplied in `CreateWindow.Theme` or later through `Set
 
 `RestoreImageUrl` optionally supplies the image shown inside the floating window-toggle button. The Lilith theme has its own background artwork URL.
 
-Set `RestoreImageUrl` to a direct PNG or baseline JPEG URL; the library detects the file format and loads the matching decoder:
+Set `RestoreImageUrl` to a direct PNG or JPEG URL; the library detects the file format and loads the matching decoder:
 
 ```lua
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
@@ -177,7 +177,7 @@ local window = AstraUI:CreateWindow({
 })
 ```
 
-The bundled decoders expose `decode(buffer, options)` and `supportsYieldIfNeeded = true`. `PngDecoder` / `PngDecoderUrl` and `JpegDecoder` / `JpegDecoderUrl` optionally override their respective decoders. JPEG support covers baseline 8-bit grayscale, RGB, and YCbCr images; progressive and CMYK JPEGs are not supported. Remote decoder loading requires an executor or runtime that provides `game:HttpGet` and `loadstring`. Image rendering requires `EditableImage` support and permissions in the target environment. If an image cannot be loaded or decoded, the library warns and keeps the built-in toggle icon visible.
+The bundled decoders expose `decode(buffer, options)` and `supportsYieldIfNeeded = true`. `PngDecoder` / `PngDecoderUrl` and `JpegDecoder` / `JpegDecoderUrl` optionally override their respective decoders. JPEG support covers baseline and progressive 8-bit grayscale, RGB, and YCbCr images; arithmetic-coded and CMYK JPEGs are not supported. Progressive decoding uses up to 64 MB for coefficient storage. Remote decoder loading requires an executor or runtime that provides `game:HttpGet` and `loadstring`. Image rendering requires `EditableImage` support and permissions in the target environment. If an image cannot be loaded or decoded, the library warns and keeps the built-in toggle icon visible.
 
 ## Window methods
 

@@ -13,7 +13,7 @@ Astra UI คือไลบรารีส่วนติดต่อผู้�
 - ช่องกรอกข้อมูล ปุ่มลัด สี ตัวบอกความคืบหน้า แผงสถานะ และป้ายกำกับ
 - การแจ้งเตือน กล่องโต้ตอบ จุดเชื่อมต่อสำหรับการแปลภาษา และการจัดเก็บสถานะของหน้าต่าง
 - รองรับรูป PNG และ JPEG สำหรับปุ่มเปิดหน้าต่างแบบลอยและภาพพื้นหลังของธีม Lilith
-- มีตัวถอดรหัส PNG และ JPEG baseline สำหรับ Luau พร้อมรองรับการ yield ระหว่างประมวลผล
+- มีตัวถอดรหัส PNG และ JPEG ทั้ง baseline/progressive สำหรับ Luau พร้อมรองรับการ yield ระหว่างประมวลผล
 
 ## ไฟล์
 
@@ -22,7 +22,7 @@ Astra UI คือไลบรารีส่วนติดต่อผู้�
 | `main.lua` | ไลบรารี Astra UI; การโหลดไอคอนจากระยะไกลในปัจจุบันต้องใช้ `game:HttpGet` และ `loadstring` |
 | `demo.lua` | ตัวอย่างแดชบอร์ดที่ใช้ไลบรารี |
 | `png.luau` | ตัวถอดรหัส PNG ที่รองรับการ yield |
-| `jpeg.luau` | ตัวถอดรหัส JPEG baseline ที่รองรับการ yield |
+| `jpeg.luau` | ตัวถอดรหัส JPEG baseline/progressive ที่รองรับการ yield |
 | `UI_LIBRARY_SPEC.md` | ข้อกำหนดการออกแบบและ API |
 | `LICENSE` | สัญญาอนุญาต MIT |
 
@@ -44,7 +44,7 @@ local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyn
 
 ### รองรับ PNG และ JPEG
 
-ไลบรารีตรวจข้อมูล PNG หรือ JPEG baseline และโหลดตัวถอดรหัสที่ตรงกันให้อัตโนมัติ เพียงระบุ URL ของรูป:
+ไลบรารีตรวจข้อมูล PNG หรือ JPEG baseline/progressive และโหลดตัวถอดรหัสที่ตรงกันให้อัตโนมัติ เพียงระบุ URL ของรูป:
 
 ```lua
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
@@ -59,7 +59,7 @@ local window = AstraUI:CreateWindow({
 
 ### ตัวถอดรหัส JPEG
 
-`jpeg.luau` ถอดรหัส JPEG baseline 8-bit แบบ grayscale, RGB และ YCbCr และถูกใช้โดยระบบโหลดรูปภาพของ Astra UI ดูข้อจำกัดได้ที่[คู่มือตัวถอดรหัส JPEG](docs/th/jpeg-images.md)
+`jpeg.luau` ถอดรหัส JPEG baseline และ progressive 8-bit แบบ grayscale, RGB และ YCbCr และถูกใช้โดยระบบโหลดรูปภาพของ Astra UI ดูข้อจำกัดได้ที่[คู่มือตัวถอดรหัส JPEG](docs/th/jpeg-images.md)
 
 ## เริ่มต้นใช้งานอย่างรวดเร็ว
 
@@ -165,7 +165,7 @@ window:SetTheme({
 
 `RestoreImageUrl` ใช้ระบุรูปภาพที่จะแสดงในปุ่มเปิดหน้าต่างแบบลอย ส่วนธีม Lilith มี URL ภาพพื้นหลังของตัวเอง
 
-กำหนด `RestoreImageUrl` เป็น URL ตรงของ PNG หรือ JPEG baseline ไลบรารีจะตรวจชนิดไฟล์และโหลดตัวถอดรหัสที่ตรงกันให้อัตโนมัติ:
+กำหนด `RestoreImageUrl` เป็น URL ตรงของ PNG หรือ JPEG ไลบรารีจะตรวจชนิดไฟล์และโหลดตัวถอดรหัสที่ตรงกันให้อัตโนมัติ:
 
 ```lua
 local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/main.lua"))()
@@ -176,7 +176,7 @@ local window = AstraUI:CreateWindow({
 })
 ```
 
-ตัวถอดรหัสที่มาพร้อมไลบรารีมี `decode(buffer, options)` และ `supportsYieldIfNeeded = true` สามารถกำหนด `PngDecoder` / `PngDecoderUrl` และ `JpegDecoder` / `JpegDecoderUrl` เพื่อใช้ตัวถอดรหัสอื่นได้ JPEG รองรับ baseline 8-bit แบบ grayscale, RGB และ YCbCr แต่ไม่รองรับ progressive หรือ CMYK การโหลดตัวถอดรหัสจากระยะไกลต้องใช้ executor หรือ runtime ที่รองรับ `game:HttpGet` และ `loadstring` การแสดงภาพต้องใช้ `EditableImage` และสิทธิ์ที่จำเป็น หากโหลดหรือถอดรหัสรูปไม่สำเร็จ ไลบรารีจะแสดงคำเตือนและคงไอคอนเริ่มต้นไว้
+ตัวถอดรหัสที่มาพร้อมไลบรารีมี `decode(buffer, options)` และ `supportsYieldIfNeeded = true` สามารถกำหนด `PngDecoder` / `PngDecoderUrl` และ `JpegDecoder` / `JpegDecoderUrl` เพื่อใช้ตัวถอดรหัสอื่นได้ JPEG รองรับ baseline และ progressive 8-bit แบบ grayscale, RGB และ YCbCr แต่ไม่รองรับ arithmetic-coded หรือ CMYK การถอดรหัส progressive ใช้ coefficient storage ได้สูงสุด 64 MB การโหลดตัวถอดรหัสจากระยะไกลต้องใช้ executor หรือ runtime ที่รองรับ `game:HttpGet` และ `loadstring` การแสดงภาพต้องใช้ `EditableImage` และสิทธิ์ที่จำเป็น หากโหลดหรือถอดรหัสรูปไม่สำเร็จ ไลบรารีจะแสดงคำเตือนและคงไอคอนเริ่มต้นไว้
 
 ## เมธอดของหน้าต่าง
 

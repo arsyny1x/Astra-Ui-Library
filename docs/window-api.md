@@ -26,10 +26,10 @@ local window = AstraUI:CreateWindow(config)
 | `Settings` | table? | Optional shared profile key, `FilePath` for built-in JSON persistence, or host callbacks |
 | `StatePersistence` | table? | Optional `Path` for `SaveStateToFile`/`LoadStateFromFile` and `AutoSaveInterval` |
 | `Parent` | `Instance`? | Parent GUI; defaults to `gethui()` (alias: `get_hidden_gui()`). An explicit parent overrides this. |
-| `RestoreImageUrl` | string? | HTTP(S) PNG or baseline JPEG for the restore button |
+| `RestoreImageUrl` | string? | HTTP(S) PNG or supported baseline/progressive JPEG for the restore button |
 | `PngDecoder` | table? | Decoder exposing `decode(buffer, options)` |
-| `PngDecoderUrl` | string? | Optional remote decoder source override; defaults to the bundled `luau-png` URL and downloads/executes code if no decoder module is found |
-| `JpegDecoder` | table? | Optional baseline JPEG decoder exposing `decode(buffer, options)` |
+| `PngDecoderUrl` | string? | Optional remote decoder source override; defaults to this repository's `png.luau` and downloads/executes code if no decoder module is found |
+| `JpegDecoder` | table? | Optional baseline/progressive JPEG decoder exposing `decode(buffer, options)` |
 | `JpegDecoderUrl` | string? | Optional remote JPEG decoder source override; defaults to the bundled `jpeg.luau` URL and downloads/executes code if no decoder module is found |
 | `Discord` | table? | Optional invite `Url` and host-provided `Copy(url)` callback |
 | `IconLibrary` | table? | Lucide-compatible library exposing `GetAsset(name)` |

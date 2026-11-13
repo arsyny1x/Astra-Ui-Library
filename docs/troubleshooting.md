@@ -6,7 +6,7 @@
 2. Confirm a compatible decoder is supplied as `PngDecoder` or found as a nearby ModuleScript named `png` or `luau-png`.
 3. Confirm the decoder exports `supportsYieldIfNeeded = true` and accepts the `yieldIfNeeded` option.
 4. Confirm the target runtime supports `EditableImage` and has the required permissions.
-5. Confirm the URL returns PNG data or a supported baseline JPEG. The loader detects the image format from its signature and rejects unsupported formats or images above its size/dimension limits.
+5. Confirm the URL returns PNG data or a supported baseline/progressive JPEG. The loader detects the image format from its signature and rejects unsupported formats or images above its size/dimension limits.
 
 ## The library fails while loading icons
 

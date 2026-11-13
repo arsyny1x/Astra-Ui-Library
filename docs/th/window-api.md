@@ -26,10 +26,10 @@ local window = AstraUI:CreateWindow(config)
 | `Settings` | table? | คีย์ profile, `FilePath` สำหรับบันทึก JSON ในตัว หรือ callback จาก host (ไม่บังคับ) |
 | `StatePersistence` | table? | `Path` สำหรับ `SaveStateToFile`/`LoadStateFromFile` และ `AutoSaveInterval` (ไม่บังคับ) |
 | `Parent` | `Instance`? | GUI parent ค่าเริ่มต้นคือ `gethui()` (alias: `get_hidden_gui()`) หากระบุจะใช้ค่านี้แทน |
-| `RestoreImageUrl` | string? | URL HTTP(S) ของรูป PNG หรือ JPEG baseline สำหรับปุ่ม restore |
+| `RestoreImageUrl` | string? | URL HTTP(S) ของรูป PNG หรือ JPEG baseline/progressive ที่รองรับสำหรับปุ่ม restore |
 | `PngDecoder` | table? | ตัวถอดรหัสที่เปิดเผย `decode(buffer, options)` |
-| `PngDecoderUrl` | string? | เปลี่ยน URL ของตัวถอดรหัสระยะไกล (ไม่บังคับ) ค่าเริ่มต้นเป็น URL `luau-png` ที่มาพร้อมกัน หากไม่พบโมดูลจะดาวน์โหลดและรันโค้ด |
-| `JpegDecoder` | table? | ตัวถอดรหัส JPEG baseline ที่เปิดเผย `decode(buffer, options)` (ไม่บังคับ) |
+| `PngDecoderUrl` | string? | เปลี่ยน URL ของตัวถอดรหัสระยะไกล (ไม่บังคับ) ค่าเริ่มต้นเป็นไฟล์ `png.luau` ใน repository นี้ หากไม่พบโมดูลจะดาวน์โหลดและรันโค้ด |
+| `JpegDecoder` | table? | ตัวถอดรหัส JPEG baseline/progressive ที่เปิดเผย `decode(buffer, options)` (ไม่บังคับ) |
 | `JpegDecoderUrl` | string? | เปลี่ยน URL ของตัวถอดรหัส JPEG ระยะไกล (ไม่บังคับ) ค่าเริ่มต้นเป็น URL `jpeg.luau` ที่มาพร้อมกัน หากไม่พบโมดูลจะดาวน์โหลดและรันโค้ด |
 | `Discord` | table? | URL เชิญและ callback `Copy(url)` ที่ host จัดเตรียม (ไม่บังคับ) |
 | `IconLibrary` | table? | ไลบรารีที่เข้ากันได้กับ Lucide และเปิดเผย `GetAsset(name)` |

@@ -13,9 +13,9 @@ local ICON_LIBRARY_URLS = {
     Lucide = "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/main/source.lua",
     Solar = "https://raw.githubusercontent.com/Footagesus/Icons/refs/heads/main/solar/dist/Icons.lua",
 }
-local DEFAULT_PNG_DECODER_URL = "https://raw.githubusercontent.com/arsyny1x/luau-png/refs/heads/main/png.luau"
+local DEFAULT_PNG_DECODER_URL = "https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/png.luau"
 local DEFAULT_JPEG_DECODER_URL = "https://raw.githubusercontent.com/arsyny1x/Astra-Ui-Library/main/jpeg.luau"
-local LILITH_BACKGROUND_URL = "https://i.ibb.co/sk4YSdj/0074aa3e1434937e307545db8881065878c16ecc.png"
+local LILITH_BACKGROUND_URL = "https://i.ibb.co/20dLB0dc/0074aa3e1434937e307545db8881065878c16ecc-1.jpg"
 local loadRestoreImage
 
 local function loadIconLibrary(url, name)
@@ -6680,14 +6680,12 @@ loadRestoreImage = function(
                     assert(offset + 1 <= #encoded, "truncated JPEG segment")
                     local segmentLength = string.byte(encoded, offset) * 256 + string.byte(encoded, offset + 1)
                     assert(segmentLength >= 2 and offset + segmentLength - 1 <= #encoded, "invalid JPEG segment length")
-                    if marker == 0xC0 then
+                    if marker == 0xC0 or marker == 0xC2 then
                         assert(segmentLength >= 8 and string.byte(encoded, offset + 2) == 8,
-                            "only baseline 8-bit JPEG images are supported")
+                            "only 8-bit JPEG images are supported")
                         headerHeight = string.byte(encoded, offset + 3) * 256 + string.byte(encoded, offset + 4)
                         headerWidth = string.byte(encoded, offset + 5) * 256 + string.byte(encoded, offset + 6)
                         break
-                    elseif marker == 0xC2 then
-                        error("progressive JPEG is not supported")
                     end
                     offset += segmentLength
                 end
