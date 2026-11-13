@@ -1,5 +1,7 @@
 # Astra UI
 
+**[English](README.md) | [ไทย](README.th.md)**
+
 Astra UI is a reusable Roblox Luau UI library built with native Roblox GUI objects. It provides responsive windows, tabs, sections, cards, interactive controls, theme presets, notifications, dialogs, player selection, and state serialization.
 
 ## Features
