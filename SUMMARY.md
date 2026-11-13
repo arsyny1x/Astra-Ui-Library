@@ -18,7 +18,6 @@
 * [Themes and customization](docs/themes.md)
 * [State and localization](docs/state-and-localization.md)
 * [PNG images](docs/png-images.md)
-* [Publish with GitHub Pages](docs/deployment.md)
 
 ## Reference
 

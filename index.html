@@ -209,6 +209,27 @@
       padding: 38px 32px 72px;
     }
 
+    .language-switcher {
+      position: fixed;
+      top: 14px;
+      right: 22px;
+      z-index: 1001;
+    }
+
+    .language-switcher select {
+      min-width: 112px;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid #293650;
+      border-radius: 9px;
+      background: #111a2b;
+      color: #e4eafb;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      color-scheme: dark;
+    }
+
     .markdown-section h1,
     .markdown-section h2,
     .markdown-section h3 {
@@ -334,6 +355,12 @@
 </head>
 <body>
   <div id="app">Loading Astra UI docs...</div>
+  <div class="language-switcher">
+    <select id="language-select" aria-label="Language / ภาษา" title="Language / ภาษา">
+      <option value="en">English</option>
+      <option value="th">ไทย</option>
+    </select>
+  </div>
   <script>
     window.$docsify = {
       name: "Astra UI",
@@ -361,6 +388,9 @@
           if (window.Prism) {
             window.Prism.highlightAll();
           }
+          if (window.updateDocsLanguage) {
+            window.setTimeout(window.updateDocsLanguage, 100);
+          }
         }
       },
       pagination: {
@@ -375,5 +405,109 @@
   <script src="//cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
   <script src="//cdn.jsdelivr.net/npm/docsify-copy-code@2"></script>
   <script src="//cdn.jsdelivr.net/npm/docsify-pagination@2/dist/docsify-pagination.min.js"></script>
+  <script>
+    (function() {
+      var languageSelect = document.getElementById("language-select");
+
+      function updateLanguageUi(isThai) {
+        var searchPlaceholder = isThai ? "ค้นหาเอกสาร" : "Search the docs";
+        var noSearchResults = isThai ? "ไม่พบผลลัพธ์" : "No results found.";
+        var copyLabels = isThai
+          ? { button: "คัดลอก", error: "คัดลอกไม่สำเร็จ", success: "คัดลอกแล้ว" }
+          : { button: "Copy", error: "Copy failed", success: "Copied" };
+        var config = window.$docsify;
+
+        document.documentElement.lang = isThai ? "th" : "en";
+        var languageLabel = isThai ? "เลือกภาษา" : "Choose language";
+        if (languageSelect.getAttribute("aria-label") !== languageLabel) {
+          languageSelect.setAttribute("aria-label", languageLabel);
+        }
+        if (languageSelect.title !== languageLabel) {
+          languageSelect.title = languageLabel;
+        }
+
+        config.search.placeholder = searchPlaceholder;
+        config.search.noData = noSearchResults;
+        config.copyCode.buttonText = copyLabels.button;
+        config.copyCode.errorText = copyLabels.error;
+        config.copyCode.successText = copyLabels.success;
+        config.pagination.previousText = isThai ? "ก่อนหน้า" : "Previous";
+        config.pagination.nextText = isThai ? "ถัดไป" : "Next";
+
+        var searchInput = document.querySelector(".sidebar .search input");
+        if (searchInput && searchInput.placeholder !== searchPlaceholder) {
+          searchInput.placeholder = searchPlaceholder;
+          searchInput.setAttribute("aria-label", searchPlaceholder);
+        }
+
+        document.querySelectorAll(".docsify-copy-code-button").forEach(function(button) {
+          var label = button.querySelector(".label");
+          var error = button.querySelector(".error");
+          var success = button.querySelector(".success");
+          if (label && label.textContent !== copyLabels.button) label.textContent = copyLabels.button;
+          if (error && error.textContent !== copyLabels.error) error.textContent = copyLabels.error;
+          if (success && success.textContent !== copyLabels.success) success.textContent = copyLabels.success;
+        });
+
+        document.querySelectorAll(".pagination-item--previous .pagination-item-label span")
+          .forEach(function(label) {
+            var text = isThai ? "ก่อนหน้า" : "Previous";
+            if (label.textContent !== text) label.textContent = text;
+          });
+        document.querySelectorAll(".pagination-item--next .pagination-item-label span")
+          .forEach(function(label) {
+            var text = isThai ? "ถัดไป" : "Next";
+            if (label.textContent !== text) label.textContent = text;
+          });
+      }
+
+      function syncLanguage() {
+        var route = window.location.hash.slice(1).split("?")[0].toLowerCase();
+        var isThai = route === "/readme.th" || route.indexOf("/docs/th/") === 0;
+        languageSelect.value = isThai ? "th" : "en";
+        updateLanguageUi(isThai);
+      }
+
+      window.updateDocsLanguage = syncLanguage;
+
+      languageSelect.addEventListener("change", function() {
+        var route = window.location.hash.slice(1).split("?")[0];
+        var isThai = languageSelect.value === "th";
+        var target = route;
+
+        updateLanguageUi(isThai);
+
+        if (isThai) {
+          if (route === "" || route === "/" || route.toLowerCase() === "/readme") {
+            target = "/docs/th/README";
+          } else if (route.indexOf("/docs/th/") !== 0 && route.indexOf("/docs/") === 0) {
+            target = route.replace(/^\/docs\//, "/docs/th/");
+          } else if (route.indexOf("/docs/") !== 0) {
+            target = "/docs/th/README";
+          }
+        } else if (route.toLowerCase() === "/readme.th" || route.toLowerCase() === "/docs/th/readme") {
+          target = "/README";
+        } else if (route.indexOf("/docs/th/") === 0) {
+          target = route.replace(/^\/docs\/th\//, "/docs/");
+        }
+
+        if (target !== route) {
+          window.location.hash = target;
+        }
+      });
+
+      window.addEventListener("hashchange", syncLanguage);
+      syncLanguage();
+
+      if (window.MutationObserver && document.body) {
+        var languageUpdateTimer;
+        var observer = new MutationObserver(function() {
+          window.clearTimeout(languageUpdateTimer);
+          languageUpdateTimer = window.setTimeout(syncLanguage, 100);
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      }
+    })();
+  </script>
 </body>
 </html>
