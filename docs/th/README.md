@@ -20,7 +20,6 @@ Astra UI คือไลบรารีส่วนติดต่อผู้�
 | `main.lua` | ไลบรารี Astra UI; การโหลดไอคอนจากระยะไกลในปัจจุบันต้องใช้ `game:HttpGet` และ `loadstring` |
 | `demo.lua` | ตัวอย่างแดชบอร์ดที่ใช้ไลบรารี |
 | `png.luau` | ตัวถอดรหัส PNG ที่รองรับการ yield |
-| `luau-png.lua` | ตัวถอดรหัส PNG อีกชุดหนึ่ง |
 | `UI_LIBRARY_SPEC.md` | ข้อกำหนดการออกแบบและ API |
 | `LICENSE` | สัญญาอนุญาต MIT |
 

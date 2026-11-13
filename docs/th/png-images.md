@@ -4,7 +4,7 @@
 
 ## ตัวถอดรหัสที่มาพร้อมไลบรารี
 
-โมดูล `png.luau` และ `luau-png.lua` รองรับการ yield แบบร่วมมือกัน ตัวถอดรหัสต้องเปิดเผย:
+ตัวถอดรหัส `png.luau` ที่รวมมากับไลบรารีรองรับการ yield แบบร่วมมือกัน โดยต้องเปิดเผย:
 
 - `decode(buffer, options)`
 - `supportsYieldIfNeeded = true`

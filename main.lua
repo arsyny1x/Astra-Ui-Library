@@ -4648,7 +4648,7 @@ loadRestorePng = function(window, imageUrl, configuredDecoder, decoderUrl, targe
             assert(type(decoder) == "table" and type(decoder.decode) == "function",
                 "PNG decoder must expose decode(buffer)")
             assert(decoder.supportsYieldIfNeeded == true,
-                "PNG decoder must support cooperative yielding; provide the updated luau-png.lua module")
+                "PNG decoder must support cooperative yielding (supportsYieldIfNeeded = true)")
 
             local encoded = game:HttpGet(imageUrl)
             assert(type(encoded) == "string" and #encoded >= 24 and #encoded <= 8 * 1024 * 1024, "PNG data is empty or exceeds 8 MB")

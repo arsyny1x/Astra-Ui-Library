@@ -4,7 +4,7 @@ PNG decoding is used for the optional floating toggle-button image and the Lilit
 
 ## Built-in decoder
 
-The included `png.luau` and `luau-png.lua` modules support cooperative yielding. The decoder must expose:
+The bundled `png.luau` decoder supports cooperative yielding. The decoder must expose:
 
 - `decode(buffer, options)`
 - `supportsYieldIfNeeded = true`

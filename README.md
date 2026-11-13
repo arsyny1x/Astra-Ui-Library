@@ -22,7 +22,6 @@ Astra UI is a reusable Roblox Luau UI library built with native Roblox GUI objec
 | `main.lua` | Astra UI library; its current remote icon bootstrap requires `game:HttpGet` and `loadstring` |
 | `demo.lua` | Example dashboard using the library |
 | `png.luau` | PNG decoder with cooperative-yield support |
-| `luau-png.lua` | Alternate PNG decoder implementation |
 | `UI_LIBRARY_SPEC.md` | Design and API specification |
 | `LICENSE` | MIT License |
 
