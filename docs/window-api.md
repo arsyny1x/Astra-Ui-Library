@@ -9,7 +9,7 @@ local AstraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/arsyn
 local window = AstraUI:CreateWindow(config)
 ```
 
-`CreateWindow` returns the window object with the Lilith theme by default. The initial size defaults to `UDim2.fromOffset(800, 500)`. The window automatically fits within the available viewport, including on smaller screens; on Android and iOS, the window, content, popups, and toasts share a single 70-80% global scale. Responsive columns are selected from the displayed width after scaling, while the floating visibility button retains its size. The window scales down when hidden and expands when shown through `SetVisible`, the restore button, or the toggle key, while its border fades.
+`CreateWindow` returns the window object with the Lilith theme by default. The initial size defaults to `UDim2.fromOffset(800, 500)`. The window automatically fits within the available viewport, including on smaller screens; on Android and iOS, the window, content, popups, and toasts share a single 70% global scale. Responsive columns are selected from the displayed width after scaling, while the floating visibility button retains its size. The window scales down when hidden and expands when shown through `SetVisible`, the restore button, or the toggle key, while its border fades.
 
 | Field | Type | Default / notes |
 |---|---|---|

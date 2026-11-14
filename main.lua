@@ -1332,7 +1332,7 @@ function WindowMethods:_setResponsiveLayout(animateSidebar)
     local narrow = safeWidth < 600
     local contentScale = 1
     if IS_MOBILE_PLATFORM then
-        contentScale = clamp(math.min(safeWidth / 460, safeHeight / 640), 0.7, 0.8)
+        contentScale = 0.7
     end
     self._contentScale.Scale = contentScale
     self._uiRoot.Size = UDim2.fromScale(1 / contentScale, 1 / contentScale)
