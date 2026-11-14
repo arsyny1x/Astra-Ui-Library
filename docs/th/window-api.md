@@ -20,7 +20,7 @@ local window = AstraUI:CreateWindow(config)
 | `ToggleKey` | `Enum.KeyCode`? | ปุ่มสำหรับสลับการแสดงผล (ไม่บังคับ) |
 | `Responsive` | boolean? | ค่าเริ่มต้นเป็น `true` เว้นแต่กำหนดเป็น `false` |
 | `Resizable` | boolean? | ค่าเริ่มต้นเป็น `true` เว้นแต่กำหนดเป็น `false` |
-| `Draggable` | boolean? | ค่าเริ่มต้นเป็น `true` เว้นแต่กำหนดเป็น `false` |
+| `Draggable` | boolean? | ค่าเริ่มต้นเป็น `true` เว้นแต่กำหนดเป็น `false`; ลากจากส่วนหัวได้ด้วยเมาส์และสัมผัส โดยไม่ให้หน้าต่างหลุดจาก viewport |
 | `Theme` | table? | ค่า override บางส่วนของ token ธีม โดยค่าต้องตรงกับชนิดของ token |
 | `Localization` | table? | locale, resolver และตารางคำแปล `Locales` (ไม่บังคับ) |
 | `Settings` | table? | คีย์ profile, `FilePath` สำหรับบันทึก JSON ในตัว หรือ callback จาก host (ไม่บังคับ) |

@@ -20,7 +20,7 @@ local window = AstraUI:CreateWindow(config)
 | `ToggleKey` | `Enum.KeyCode`? | Optional visibility toggle key |
 | `Responsive` | boolean? | `true` unless explicitly `false` |
 | `Resizable` | boolean? | `true` unless explicitly `false` |
-| `Draggable` | boolean? | `true` unless explicitly `false` |
+| `Draggable` | boolean? | `true` unless explicitly `false`; header dragging supports mouse and touch and stays within the viewport |
 | `Theme` | table? | Partial theme-token overrides; values must match token types |
 | `Localization` | table? | Locale, resolver, and optional `Locales` translation map |
 | `Settings` | table? | Optional shared profile key, `FilePath` for built-in JSON persistence, or host callbacks |

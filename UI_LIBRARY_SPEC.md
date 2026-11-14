@@ -191,7 +191,7 @@ window:SetTheme({
 
 ### Window behavior and overlay layers
 
-- Desktop windows may be draggable by the header, but dragging starts only from the header's non-interactive area, not from search, buttons, or text inputs. Constrain the window so its title and close/navigation affordances remain reachable.
+- Windows may be dragged by the header on desktop or touch, but dragging starts only from the header's non-interactive area, not from search, buttons, or text inputs. Constrain the window so its title and close/navigation affordances remain reachable.
 - `Draggable` and `Resizable` default to `true` on desktop and can be disabled in window config. Resizing has a visible grip and clamps to the usable minimum or viewport bounds; minimize hides the panel and exposes a restore button.
 - Provide explicit minimize, close, and restore controls when enabled. `Close` hides or destroys only according to a documented config choice; do not make a decorative close icon silently destroy user state.
 - Touch layouts use large explicit header actions; dragging is optional and never the only way to move or dismiss the window.

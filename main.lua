@@ -3471,7 +3471,7 @@ function WindowMethods:SetSize(size)
 end
 
 function WindowMethods:_beginDrag(input)
-    if self._narrow or not self._draggable then
+    if not self._draggable then
         return
     end
     self._dragInput = input
@@ -3480,7 +3480,7 @@ function WindowMethods:_beginDrag(input)
 end
 
 function WindowMethods:_updateDrag(input)
-    if not self._dragInput or self._narrow then
+    if not self._dragInput then
         return
     end
     if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
@@ -3496,7 +3496,7 @@ function WindowMethods:_updateDrag(input)
     local y = self._dragStartPosition.Y.Offset * scale + delta.Y
     local insetTopLeft, insetBottomRight = GuiService:GetGuiInset()
     x = clamp(x, -viewport.X / 2 + halfWidth + insetTopLeft.X, viewport.X / 2 - halfWidth - insetBottomRight.X)
-    y = clamp(y, -viewport.Y / 2 + halfHeight + insetTopLeft.Y, viewport.Y / 2 - halfHeight - insetBottomRight.Y)
+    y = clamp(y, -viewport.Y / 2 + halfHeight, viewport.Y / 2 - halfHeight - insetBottomRight.Y)
     self._panel.Position = UDim2.new(0.5, x / scale, 0.5, y / scale)
 end
 
