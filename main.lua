@@ -4289,6 +4289,16 @@ function ControlMethods:_changed(value, fromUser)
     end
 end
 
+local function setLocalizedControlButtonText(component, value)
+    component._button.Text = component._window:_resolveText(value)
+    for _, item in ipairs(component._window._localized) do
+        if item.Object == component._button and item.Property == "Text" then
+            item.Value = value
+            return
+        end
+    end
+end
+
 function ControlMethods:SetValue(value)
     local kind = self._kind
     if kind == "Toggle" then
@@ -4324,7 +4334,7 @@ function ControlMethods:SetValue(value)
         end
         assert(found, "Dropdown value must exist in Options")
         self._value = value
-        self._button.Text = tostring(value)
+        setLocalizedControlButtonText(self, value)
     elseif kind == "PlayerDropdown" then
         assert(value == nil or type(value) == "table", "PlayerDropdown value must be an array of Players or nil")
         for _, connection in ipairs(self._playerBadgeConnections or {}) do
