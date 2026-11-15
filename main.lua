@@ -4289,10 +4289,10 @@ function ControlMethods:_changed(value, fromUser)
     end
 end
 
-local function setLocalizedControlButtonText(component, value)
-    component._button.Text = component._window:_resolveText(value)
+local function setLocalizedComponentText(component, object, value)
+    object.Text = component._window:_resolveText(value)
     for _, item in ipairs(component._window._localized) do
-        if item.Object == component._button and item.Property == "Text" then
+        if item.Object == object and item.Property == "Text" then
             item.Value = value
             return
         end
@@ -4320,7 +4320,7 @@ function ControlMethods:SetValue(value)
             value = clamp(value, self._min, self._max)
         end
         self._value = value
-        self._valueLabel.Text = tostring(value)
+        setLocalizedComponentText(self, self._valueLabel, tostring(value))
         local fraction = (value - self._min) / (self._max - self._min)
         self._fill.Size = UDim2.new(fraction, 0, 1, 0)
         self._sliderKnob.Position = UDim2.new(fraction, -7, 0.5, -7)
@@ -4334,7 +4334,7 @@ function ControlMethods:SetValue(value)
         end
         assert(found, "Dropdown value must exist in Options")
         self._value = value
-        setLocalizedControlButtonText(self, value)
+        setLocalizedComponentText(self, self._button, value)
     elseif kind == "PlayerDropdown" then
         assert(value == nil or type(value) == "table", "PlayerDropdown value must be an array of Players or nil")
         for _, connection in ipairs(self._playerBadgeConnections or {}) do
