@@ -1204,6 +1204,15 @@ function WindowMethods:_warnCallback(label, callback, ...)
     end)
 end
 
+local function decodeComponentStateValue(component, value)
+    if component._kind == "Colorpicker" and type(value) == "table" then
+        return Color3.new(value.R, value.G, value.B)
+    elseif component._kind == "Keybind" and type(value) == "string" then
+        return Enum.KeyCode[value]
+    end
+    return value
+end
+
 function WindowMethods:_registerComponent(component)
     if component.Id then
         assert(type(component.Id) == "string" and component.Id ~= "", "Component Id must be a non-empty string")
@@ -1218,7 +1227,9 @@ function WindowMethods:_registerComponent(component)
                 if pendingValue ~= nil and not target._applyingPendingState then
                     pendingValues[target.Id] = nil
                     target._applyingPendingState = true
-                    local ok, err = pcall(originalSetValue, target, pendingValue)
+                    local ok, err = pcall(function()
+                        originalSetValue(target, decodeComponentStateValue(target, pendingValue))
+                    end)
                     target._applyingPendingState = false
                     if not ok then
                         warn("[AstraUI] Invalid state for " .. target.Id .. ": " .. tostring(err))
@@ -3600,7 +3611,8 @@ function WindowMethods:GetState()
     end
     return {
         Version = 1,
-        SelectedTab = self._selectedTab and self._selectedTab._explicitId and self._selectedTab.Id or nil,
+        SelectedTab = self._pendingSelectedTabId
+            or (self._selectedTab and self._selectedTab._explicitId and self._selectedTab.Id or nil),
         ThemePreset = self._themePreset,
         Locale = self.Localization.Locale,
         ToggleKey = self._toggleKey and self._toggleKey.Name or nil,
@@ -3651,25 +3663,26 @@ function WindowMethods:SetState(state)
     for _, component in ipairs(self._components) do
         if component.Id and component.SetValue and state.Values[component.Id] ~= nil then
             local value = state.Values[component.Id]
-            if component._kind == "Colorpicker" and type(value) == "table" then
-                value = Color3.new(value.R, value.G, value.B)
-            elseif component._kind == "Keybind" and type(value) == "string" then
-                value = Enum.KeyCode[value]
-            end
             local ok, err = pcall(function()
-                component:SetValue(value)
+                component:SetValue(decodeComponentStateValue(component, value))
             end)
             if not ok then
                 warn("[AstraUI] Invalid state for " .. component.Id .. ": " .. tostring(err))
             end
         end
     end
-    if state.SelectedTab then
+    self._pendingSelectedTabId = nil
+    if type(state.SelectedTab) == "string" and state.SelectedTab ~= "" then
+        local found = false
         for _, tab in ipairs(self._tabs) do
             if tab.Id == state.SelectedTab then
                 self:_selectTab(tab)
+                found = true
                 break
             end
+        end
+        if not found then
+            self._pendingSelectedTabId = state.SelectedTab
         end
     end
 end
@@ -3961,6 +3974,7 @@ function WindowMethods:Tab(config)
         tab._iconLabel = iconLabel
     end
     self:_connect(tabButton.Activated, function()
+        self._pendingSelectedTabId = nil
         self:_selectTab(tab)
     end)
 
@@ -3997,7 +4011,10 @@ function WindowMethods:Tab(config)
             self._drawer.Visible = false
         end
     end)
-    if not self._selectedTab then
+    if self._pendingSelectedTabId == tab.Id then
+        self._pendingSelectedTabId = nil
+        self:_selectTab(tab)
+    elseif not self._selectedTab then
         self:_selectTab(tab)
     end
     self:_setResponsiveLayout()
@@ -6630,6 +6647,7 @@ function SearchMethods:_update()
             window:_button(self._results, component.Name, function()
                 local tab = target._section and target._section._tab or target._tab
                 if tab then
+                    window._pendingSelectedTabId = nil
                     window:_selectTab(tab)
                 end
                 self._input:ReleaseFocus()
