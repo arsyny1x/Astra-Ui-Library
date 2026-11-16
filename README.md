@@ -190,6 +190,7 @@ The window handle includes:
 - `GetState()`, `SetState(stateTable)`, `SaveStateToFile()`, `LoadStateFromFile()`, `StartStateAutoSave()`, and `Destroy()`
 
 Use explicit IDs on controls and tabs that should be restored through the state methods. File persistence helpers require host-provided filesystem functions and do not write to a Roblox data store.
+Control values for IDs that have not been created yet are kept and applied when the matching control is created.
 
 ## Demo
 

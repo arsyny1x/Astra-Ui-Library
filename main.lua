@@ -1209,6 +1209,24 @@ function WindowMethods:_registerComponent(component)
         assert(type(component.Id) == "string" and component.Id ~= "", "Component Id must be a non-empty string")
         assert(not self._ids[component.Id], "Duplicate component Id: " .. tostring(component.Id))
         self._ids[component.Id] = component
+        if type(component.SetValue) == "function" then
+            local originalSetValue = component.SetValue
+            component.SetValue = function(target, value)
+                local result = originalSetValue(target, value)
+                local pendingValues = self._pendingStateValues
+                local pendingValue = pendingValues and pendingValues[target.Id]
+                if pendingValue ~= nil and not target._applyingPendingState then
+                    pendingValues[target.Id] = nil
+                    target._applyingPendingState = true
+                    local ok, err = pcall(originalSetValue, target, pendingValue)
+                    target._applyingPendingState = false
+                    if not ok then
+                        warn("[AstraUI] Invalid state for " .. target.Id .. ": " .. tostring(err))
+                    end
+                end
+                return result
+            end
+        end
     end
     local originalDestroy = component.Destroy
     if type(originalDestroy) == "function" then
@@ -3564,6 +3582,9 @@ end
 
 function WindowMethods:GetState()
     local values = {}
+    for id, value in pairs(self._pendingStateValues or {}) do
+        values[id] = type(value) == "table" and shallowCopy(value) or value
+    end
     for _, component in ipairs(shallowCopy(self._components)) do
         if component.Id and component.GetValue then
             local value = component:GetValue()
@@ -3618,7 +3639,13 @@ function WindowMethods:SetState(state)
     end
     for id in pairs(state.Values) do
         if not self._ids[id] then
-            warn("[AstraUI] Ignoring unknown state Id: " .. tostring(id))
+            local value = state.Values[id]
+            if type(id) == "string" then
+                self._pendingStateValues = self._pendingStateValues or {}
+                self._pendingStateValues[id] = type(value) == "table" and shallowCopy(value) or value
+            else
+                warn("[AstraUI] Ignoring state value with a non-string Id")
+            end
         end
     end
     for _, component in ipairs(self._components) do
@@ -4463,7 +4490,11 @@ function ControlMethods:SetValue(value)
             table.insert(selected, item)
         end
         self._value = selected
-        self._button.Text = #selected == 0 and "Select…" or table.concat(selected, ", ")
+        setLocalizedComponentText(
+            self,
+            self._button,
+            #selected == 0 and "Select…" or table.concat(selected, ", ")
+        )
     elseif kind == "Input" then
         assert(type(value) == "string", "Input value must be a string")
         if self._config.MaxLength then
@@ -4835,6 +4866,13 @@ function WindowMethods:_showOptions(component, multiple)
             ZIndex = 104,
         })
     end
+    local optionStates = {}
+    local function refreshOptionSelection()
+        for _, optionState in ipairs(optionStates) do
+            local selected = table.find(component._value, optionState.Value) ~= nil
+            optionState.Stroke.Transparency = selected and 0 or 1
+        end
+    end
     for index, option in ipairs(component._options) do
         local optionValue = option
         local selected = (multiple or isPlayerDropdown) and table.find(component._value, optionValue) ~= nil
@@ -4852,6 +4890,10 @@ function WindowMethods:_showOptions(component, multiple)
         optionStroke.Thickness = 1
         optionStroke.LineJoinMode = Enum.LineJoinMode.Round
         optionStroke.Transparency = selected and 0 or 1
+        table.insert(optionStates, {
+            Value = optionValue,
+            Stroke = optionStroke,
+        })
         self:_button(optionFrame, "", function()
             if isPlayerDropdown then
                 if optionValue.Parent == Players then
@@ -4864,8 +4906,8 @@ function WindowMethods:_showOptions(component, multiple)
                     end
                     component:SetValue(selectedPlayers)
                     component:_changed(selectedPlayers, true)
+                    refreshOptionSelection()
                 end
-                self:_showOptions(component, false)
                 return
             end
             if multiple then
@@ -4884,8 +4926,7 @@ function WindowMethods:_showOptions(component, multiple)
                 end
                 component:SetValue(values)
                 component:_changed(values, true)
-                self:_closeOverlay()
-                self:_showOptions(component, true)
+                refreshOptionSelection()
             else
                 component:SetValue(optionValue)
                 component:_changed(optionValue, true)
@@ -7282,7 +7323,7 @@ function WindowMethods:_build(config)
         TextColor = self.Theme.AccentSecondary,
         ZIndex = 10,
     })
-    self:_icon(self._settingsButton, "settings-2", {
+    self:_icon(self._settingsButton, "settings", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(18, 18),
