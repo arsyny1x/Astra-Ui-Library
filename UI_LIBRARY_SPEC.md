@@ -434,6 +434,7 @@ Control contracts:
 | `Button` | `Name`, `Callback` | Invokes callback on activation; does not retain a value |
 | `Toggle` | `Name` | Boolean `Default`; callback receives the new boolean |
 | `Slider` | `Name`, `Min`, `Max` | Numeric bounds, optional `Step` and `Default`; callback receives a clamped, step-aligned number |
+| `Equalizer` | `Name` | Labeled, unit-aware `{X, Y}` curve with evenly spaced X points, add/delete/lock controls, adjacent-point keyboard selection, and selectable `Linear`, `Smooth`, or `Step` interpolation |
 | `Dropdown` | `Name`, `Options` | Single selection in the initial version; `Default` must be one of the options; selected menu options use a green outline only, without selected-fill or selected-text coloring; callback receives the selected option |
 | `PlayerDropdown` | `Name` | Loads current players on creation/open, multi-selects in a responsive multi-column menu with headshot, display name, and username; marks the local player as `YOU` unless `ExcludeLocalPlayer = true`; selected players appear as removable badges, joins/leaves update choices, and it is intentionally excluded from saved state |
 | `MultiDropdown` | `Name`, `Options` | Multi-selection; selected menu options use a green outline only, without selected-fill or selected-text coloring; callback receives a copy of the selected values |

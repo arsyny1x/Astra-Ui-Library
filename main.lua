@@ -1110,7 +1110,10 @@ function WindowMethods:_button(parent, text, callback, options)
         return color or self.Theme[role]
     end
     local function applyBackgroundState()
-        if pressed then
+        local persistentBackgroundRole = buttonObject:GetAttribute("AstraPersistentBackgroundRole")
+        if persistentBackgroundRole then
+            buttonObject.BackgroundColor3 = self.Theme[persistentBackgroundRole]
+        elseif pressed then
             buttonObject.BackgroundColor3 = resolveColor(pressedColor, hoverRole, pressedColorRole)
         elseif hovered then
             buttonObject.BackgroundColor3 = resolveColor(options.HoverBackground, hoverRole, hoverColorRole)
@@ -1608,13 +1611,13 @@ function WindowMethods:_addToast(config)
     self:_text(toastFrame, config.Title or kind, {
         Font = Enum.Font.GothamBold,
         Position = UDim2.new(0, 14, 0, 8),
-        Size = UDim2.new(1, -54, 0, 22),
+        Size = UDim2.new(1, -68, 0, 22),
         TextSize = 14,
         ZIndex = 202,
     })
     self:_text(toastFrame, config.Content or "", {
         Position = UDim2.new(0, 14, 0, 31),
-        Size = UDim2.new(1, -24, 0, 36),
+        Size = UDim2.new(1, -68, 0, 36),
         TextColor3 = self.Theme.TextSecondary,
         TextSize = 12,
         TextWrapped = true,
@@ -1678,6 +1681,10 @@ function WindowMethods:_addToast(config)
         Owner = toast,
     })
     close.Position = UDim2.new(1, -48, 0, 2)
+    self:_connect(close.MouseButton1Click, function()
+        toast:Dismiss()
+    end, toast)
+    close:SetAttribute("AstraLabel", "Dismiss notification")
     table.insert(self._toasts, toast)
     if duration > 0 then
         task.delay(duration, function()
@@ -4297,6 +4304,9 @@ function ControlMethods:SetEnabled(enabled)
     if self._input then
         self._input.TextEditable = enabled
     end
+    if self._kind == "Equalizer" and self._refreshEqualizerControls then
+        self:_refreshEqualizerControls()
+    end
 end
 
 function ControlMethods:SetLoading(loading)
@@ -4318,7 +4328,50 @@ function ControlMethods:SetError(message)
     self._inputStroke.Color = self._window.Theme[role]
 end
 
+local function copyEqualizerPoints(points)
+    local copy = {}
+    for index, point in ipairs(points) do
+        copy[index] = {X = point.X, Y = point.Y}
+    end
+    return copy
+end
+
+local function normalizeEqualizerPoints(value, xMin, xMax, yMin, yMax)
+    assert(type(value) == "table", "Equalizer value must be an array of points")
+    assert(#value >= 2 and #value <= 16, "Equalizer value must contain between 2 and 16 points")
+    local points = {}
+    local previousX
+    local xInterval = (xMax - xMin) / (#value - 1)
+    for index, point in ipairs(value) do
+        assert(type(point) == "table" and type(point.X) == "number" and type(point.Y) == "number"
+            and point.X == point.X and point.Y == point.Y
+            and point.X > -math.huge and point.X < math.huge
+            and point.Y > -math.huge and point.Y < math.huge,
+            "Equalizer points must contain finite numeric X and Y values")
+        assert(point.X >= xMin and point.X <= xMax and point.Y >= yMin and point.Y <= yMax,
+            "Equalizer points must be within the configured ranges")
+        assert(previousX == nil or point.X > previousX,
+            "Equalizer points must be sorted by strictly increasing X")
+        local x = index == #value and xMax or xMin + (index - 1) * xInterval
+        points[index] = {X = x, Y = point.Y}
+        previousX = point.X
+    end
+    assert(#points == #value, "Equalizer value must be a dense array of points")
+    assert(points[1].X == xMin and points[#points].X == xMax,
+        "Equalizer first and last points must be at XMin and XMax")
+    return points
+end
+
+local EQUALIZER_STYLES = {
+    Linear = true,
+    Smooth = true,
+    Step = true,
+}
+
 function ControlMethods:GetValue()
+    if self._kind == "Equalizer" then
+        return copyEqualizerPoints(self._value)
+    end
     if type(self._value) == "table" then
         return shallowCopy(self._value)
     end
@@ -4326,10 +4379,18 @@ function ControlMethods:GetValue()
 end
 
 function ControlMethods:_changed(value, fromUser)
-    self._value = type(value) == "table" and shallowCopy(value) or value
+    if self._kind == "Equalizer" then
+        self._value = copyEqualizerPoints(value)
+    else
+        self._value = type(value) == "table" and shallowCopy(value) or value
+    end
     if fromUser and self.Callback then
-        local callbackValue = type(value) == "table" and shallowCopy(value) or value
-        self._window:_warnCallback(self.Name, self.Callback, callbackValue)
+        if self._kind == "Equalizer" then
+            self._window:_warnCallback(self.Name, self.Callback, copyEqualizerPoints(value), self._style)
+        else
+            local callbackValue = type(value) == "table" and shallowCopy(value) or value
+            self._window:_warnCallback(self.Name, self.Callback, callbackValue)
+        end
     end
 end
 
@@ -4368,6 +4429,16 @@ function ControlMethods:SetValue(value)
         local fraction = (value - self._min) / (self._max - self._min)
         self._fill.Size = UDim2.new(fraction, 0, 1, 0)
         self._sliderKnob.Position = UDim2.new(fraction, -7, 0.5, -7)
+    elseif kind == "Equalizer" then
+        self._value = normalizeEqualizerPoints(value, self._xMin, self._xMax, self._yMin, self._yMax)
+        self._selectedPoint = clamp(self._selectedPoint or 1, 1, #self._value)
+        if self._hoveredPoint and self._hoveredPoint > #self._value then
+            self._hoveredPoint = nil
+        end
+        self:_renderEqualizer()
+        if self._refreshEqualizerControls then
+            self:_refreshEqualizerControls()
+        end
     elseif kind == "Dropdown" then
         local found = false
         for _, option in ipairs(self._options) do
@@ -4760,6 +4831,704 @@ function SectionMethods:Slider(config)
         end
     end, component)
     component:SetValue(config.Default or minimum)
+    return component
+end
+
+function ControlMethods:Evaluate(x)
+    assert(self._kind == "Equalizer", "Evaluate is only available on Equalizer")
+    assert(type(x) == "number" and x == x and x > -math.huge and x < math.huge,
+        "Equalizer:Evaluate expects a finite number")
+    x = clamp(x, self._xMin, self._xMax)
+    for index = 1, #self._value - 1 do
+        local left, right = self._value[index], self._value[index + 1]
+        if x <= right.X then
+            local fraction = (x - left.X) / (right.X - left.X)
+            if self._style == "Step" then
+                return fraction == 1 and right.Y or left.Y
+            elseif self._style == "Smooth" then
+                fraction = fraction * fraction * (3 - 2 * fraction)
+            end
+            return left.Y + fraction * (right.Y - left.Y)
+        end
+    end
+    return self._value[#self._value].Y
+end
+
+function ControlMethods:GetStyle()
+    assert(self._kind == "Equalizer", "GetStyle is only available on Equalizer")
+    return self._style
+end
+
+function ControlMethods:SetStyle(style)
+    assert(self._kind == "Equalizer", "SetStyle is only available on Equalizer")
+    assert(EQUALIZER_STYLES[style], "Equalizer style must be Linear, Smooth, or Step")
+    self._style = style
+    self:_renderEqualizer()
+    if self._refreshEqualizerControls then
+        self:_refreshEqualizerControls()
+    end
+    return self
+end
+
+function ControlMethods:_renderEqualizer()
+    local points = self._value
+    local plot = self._plot
+    local width, height = plot.AbsoluteSize.X, plot.AbsoluteSize.Y
+    if width <= 0 or height <= 0 then
+        return
+    end
+    local function getLine(index)
+        local line = self._curveLines[index]
+        if not line then
+            line = make("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundColor3 = self._window.Theme.AccentSecondary,
+                BorderSizePixel = 0,
+                ZIndex = 10,
+            }, plot)
+            self._window:_trackTheme(line, "AccentSecondary", "BackgroundColor3")
+            self._curveLines[index] = line
+        end
+        return line
+    end
+    local function pointPosition(point)
+        return (point.X - self._xMin) / (self._xMax - self._xMin),
+            1 - (point.Y - self._yMin) / (self._yMax - self._yMin)
+    end
+    local lineIndex = 0
+    local function drawLine(x1, y1, x2, y2)
+        lineIndex += 1
+        local line = getLine(lineIndex)
+        local dx, dy = (x2 - x1) * width, (y2 - y1) * height
+        line.Position = UDim2.fromOffset((x1 + x2) * width / 2, (y1 + y2) * height / 2)
+        line.Size = UDim2.fromOffset(math.sqrt(dx * dx + dy * dy), 3)
+        line.Rotation = math.deg(math.atan2(dy, dx))
+        line.Visible = true
+    end
+    for index = 1, #points - 1 do
+        local left, right = points[index], points[index + 1]
+        local x1, y1 = pointPosition(left)
+        local x2, y2 = pointPosition(right)
+        if self._style == "Step" then
+            drawLine(x1, y1, x2, y1)
+            drawLine(x2, y1, x2, y2)
+        elseif self._style == "Smooth" then
+            local previousX, previousY = x1, y1
+            for sample = 1, 8 do
+                local fraction = sample / 8
+                local eased = fraction * fraction * (3 - 2 * fraction)
+                local nextX = x1 + (x2 - x1) * fraction
+                local nextY = y1 + (y2 - y1) * eased
+                drawLine(previousX, previousY, nextX, nextY)
+                previousX, previousY = nextX, nextY
+            end
+        else
+            drawLine(x1, y1, x2, y2)
+        end
+    end
+    for index = lineIndex + 1, #self._curveLines do
+        self._curveLines[index].Visible = false
+    end
+    for index, point in ipairs(points) do
+        local marker = self._curveMarkers[index]
+        if not marker then
+            marker = make("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundColor3 = self._window.Theme.ControlKnob,
+                BorderSizePixel = 0,
+                ZIndex = 12,
+            }, plot)
+            addCorner(marker, 11)
+            addStroke(marker, self._window.Theme.AccentSecondary, 0, self._window, "AccentSecondary")
+            self._window:_trackTheme(marker, "ControlKnob", "BackgroundColor3")
+            self._curveMarkers[index] = marker
+        end
+        local x, y = pointPosition(point)
+        local size = index == self._selectedPoint and 16 or 12
+        marker.Position = UDim2.fromScale(x, y)
+        marker.Size = UDim2.fromOffset(size, size)
+        marker.Visible = true
+    end
+    for index = #points + 1, #self._curveMarkers do
+        self._curveMarkers[index].Visible = false
+    end
+    local shownPointIndex = self._hoveredPoint or self._selectedPoint
+    local shownPoint = points[shownPointIndex]
+    if shownPoint and self._readout then
+        self._readout.Text = string.format("X: %.2f%s   |   Y: %.2f%s",
+            shownPoint.X, self._xUnit, shownPoint.Y, self._yUnit)
+    end
+    local tooltipIndex
+    if self._dragging then
+        tooltipIndex = self._selectedPoint
+    else
+        local mousePosition = UserInputService:GetMouseLocation()
+        local plotPosition = plot.AbsolutePosition
+        local mouseX, mouseY = mousePosition.X - plotPosition.X, mousePosition.Y - plotPosition.Y
+        if mouseX >= 0 and mouseX <= width and mouseY >= 0 and mouseY <= height then
+            local closestDistance
+            for index, point in ipairs(points) do
+                local pointX, pointY = pointPosition(point)
+                local dx, dy = mouseX - pointX * width, mouseY - pointY * height
+                local distance = dx * dx + dy * dy
+                if closestDistance == nil or distance < closestDistance then
+                    closestDistance, tooltipIndex = distance, index
+                end
+            end
+            if closestDistance and closestDistance > 28 * 28 then
+                tooltipIndex = nil
+            end
+        end
+    end
+    if self._tooltip then
+        self._tooltip.Visible = tooltipIndex ~= nil
+        self._tooltipPointer.Visible = tooltipIndex ~= nil
+        if tooltipIndex then
+            local point = points[tooltipIndex]
+            local x, y = pointPosition(point)
+            local tooltipX = clamp(x * width, 72, math.max(72, width - 72))
+            local tooltipY = y * height
+            local below = tooltipY < 48
+            self._tooltip.AnchorPoint = below and Vector2.new(0.5, 0) or Vector2.new(0.5, 1)
+            self._tooltip.Position = UDim2.fromOffset(tooltipX, tooltipY + (below and 16 or -16))
+            local pointerOffset = clamp(x * width - tooltipX, -58, 58)
+            self._tooltipPointer.Position = UDim2.fromOffset(
+                tooltipX + pointerOffset, tooltipY + (below and 11 or -11))
+            self._tooltip.Text = string.format("%s: %.2f%s\n%s: %.2f%s",
+                self._window:_resolveText(self._xLabel), point.X, self._xUnit,
+                self._window:_resolveText(self._yLabel), point.Y, self._yUnit)
+        end
+    end
+    if self._refreshEqualizerControls then
+        self:_refreshEqualizerControls()
+    end
+end
+
+function SectionMethods:Equalizer(config)
+    validConfig(config, "Equalizer")
+    local function validateRange(minimum, maximum, axis)
+        assert(type(minimum) == "number" and type(maximum) == "number"
+            and minimum == minimum and maximum == maximum
+            and minimum > -math.huge and maximum < math.huge and maximum > minimum,
+            "Equalizer requires finite " .. axis .. "Min < " .. axis .. "Max")
+    end
+    local xMin = config.XMin == nil and 0 or config.XMin
+    local xMax = config.XMax == nil and 100 or config.XMax
+    local yMin = config.YMin == nil and 0 or config.YMin
+    local yMax = config.YMax == nil and 100 or config.YMax
+    validateRange(xMin, xMax, "X")
+    validateRange(yMin, yMax, "Y")
+    assert(config.Callback == nil or type(config.Callback) == "function",
+        "Equalizer.Callback must be a function")
+    local xLabel = config.XLabel == nil and "Input" or config.XLabel
+    local yLabel = config.YLabel == nil and "Output" or config.YLabel
+    local xUnit = config.XUnit == nil and "" or config.XUnit
+    local yUnit = config.YUnit == nil and "" or config.YUnit
+    local style = config.Style == nil and "Linear" or config.Style
+    assert(type(xLabel) == "string" and xLabel ~= "", "Equalizer.XLabel must be a non-empty string")
+    assert(type(yLabel) == "string" and yLabel ~= "", "Equalizer.YLabel must be a non-empty string")
+    assert(type(xUnit) == "string", "Equalizer.XUnit must be a string")
+    assert(type(yUnit) == "string", "Equalizer.YUnit must be a string")
+    assert(EQUALIZER_STYLES[style], "Equalizer.Style must be Linear, Smooth, or Step")
+    assert(config.Locked == nil or type(config.Locked) == "boolean", "Equalizer.Locked must be a boolean")
+    local defaults = config.Default
+    if defaults == nil then
+        defaults = {
+            {X = xMin, Y = yMin},
+            {X = xMax, Y = yMax},
+        }
+    end
+    defaults = normalizeEqualizerPoints(defaults, xMin, xMax, yMin, yMax)
+
+    local component = self:_row(config, "Equalizer")
+    local window = self._window
+    component._xMin, component._xMax = xMin, xMax
+    component._yMin, component._yMax = yMin, yMax
+    component._xLabel, component._yLabel = xLabel, yLabel
+    component._xUnit, component._yUnit = xUnit, yUnit
+    component._style = style
+    component._locked = config.Locked == true
+    component._selectedPoint = 1
+    component._curveLines = {}
+    component._curveMarkers = {}
+
+    component._value = defaults
+    local graph = make("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 220),
+        ZIndex = 7,
+    }, component._body)
+    local toolbar = make("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 28),
+        ZIndex = 8,
+    }, graph)
+    window:_text(graph, "X:", {
+        Position = UDim2.new(0, 0, 0, 30),
+        Size = UDim2.new(0, 18, 0, 16),
+        TextColor3 = window.Theme.TextMuted,
+        TextSize = 10,
+        ZIndex = 9,
+    })
+    window:_text(graph, xLabel, {
+        Position = UDim2.new(0, 18, 0, 30),
+        Size = UDim2.new(0.5, -24, 0, 16),
+        TextColor3 = window.Theme.TextSecondary,
+        TextSize = 10,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        ZIndex = 9,
+    })
+    window:_text(graph, "Y:", {
+        Position = UDim2.new(0.5, 0, 0, 30),
+        Size = UDim2.new(0, 18, 0, 16),
+        TextColor3 = window.Theme.TextMuted,
+        TextSize = 10,
+        ZIndex = 9,
+    })
+    window:_text(graph, yLabel, {
+        Position = UDim2.new(0.5, 18, 0, 30),
+        Size = UDim2.new(0.5, -18, 0, 16),
+        TextColor3 = window.Theme.TextSecondary,
+        TextSize = 10,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        ZIndex = 9,
+    })
+    local readout = make("TextLabel", {
+        BackgroundTransparency = 1,
+        Font = Enum.Font.GothamMedium,
+        Position = UDim2.new(0, 0, 0, 46),
+        Size = UDim2.new(1, 0, 0, 16),
+        TextColor3 = window.Theme.TextSecondary,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextSize = 11,
+        ZIndex = 8,
+    }, graph)
+    window:_trackTextColor(readout, window.Theme.TextSecondary)
+    component._readout = readout
+    local plot = make("Frame", {
+        BackgroundColor3 = window.Theme.ControlInset,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 42, 0, 66),
+        Size = UDim2.new(1, -50, 1, -86),
+        ZIndex = 8,
+    }, graph)
+    component._plot = plot
+    window:_trackTheme(plot, "ControlInset", "BackgroundColor3")
+    addCorner(plot, 6)
+    component._plotStroke = addStroke(plot, window.Theme.ControlBorder, 0.45, window, "ControlBorder")
+
+    for index = 0, 4 do
+        local fraction = index / 4
+        local horizontalGrid = make("Frame", {
+            BackgroundColor3 = window.Theme.ControlBorder,
+            BackgroundTransparency = 0.55,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 0, fraction, 0),
+            Size = UDim2.new(1, 0, 0, 1),
+            ZIndex = 9,
+        }, plot)
+        window:_trackTheme(horizontalGrid, "ControlBorder", "BackgroundColor3")
+        local verticalGrid = make("Frame", {
+            BackgroundColor3 = window.Theme.ControlBorder,
+            BackgroundTransparency = 0.72,
+            BorderSizePixel = 0,
+            Position = UDim2.new(fraction, 0, 0, 0),
+            Size = UDim2.new(0, 1, 1, 0),
+            ZIndex = 9,
+        }, plot)
+        window:_trackTheme(verticalGrid, "ControlBorder", "BackgroundColor3")
+        window:_text(graph, tostring(yMax - (yMax - yMin) * fraction), {
+            Position = UDim2.new(0, 0, 0, 66 + fraction * 134),
+            Size = UDim2.new(0, 36, 0, 16),
+            TextColor3 = window.Theme.TextMuted,
+            TextSize = 10,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            ZIndex = 8,
+        })
+    end
+    window:_text(graph, tostring(xMin), {
+        Position = UDim2.new(0, 42, 1, -19),
+        Size = UDim2.new(0, 50, 0, 16),
+        TextColor3 = window.Theme.TextMuted,
+        TextSize = 10,
+        ZIndex = 8,
+    })
+    window:_text(graph, tostring(xMax), {
+        Position = UDim2.new(1, -58, 1, -19),
+        Size = UDim2.new(0, 50, 0, 16),
+        TextColor3 = window.Theme.TextMuted,
+        TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        ZIndex = 8,
+    })
+
+    local hit = make("TextButton", {
+        Active = component.Enabled,
+        AutoButtonColor = false,
+        BackgroundTransparency = 1,
+        Selectable = true,
+        Size = UDim2.fromScale(1, 1),
+        Text = "",
+        ZIndex = 11,
+    }, plot)
+    hit:SetAttribute("AstraLabel", "Adjust equalizer curve")
+    hit.NextSelectionLeft = hit
+    hit.NextSelectionRight = hit
+    component._hit = hit
+
+    local tooltipPointer = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = window.Theme.SurfaceRaised,
+        BackgroundTransparency = 0.02,
+        BorderSizePixel = 0,
+        Rotation = 45,
+        Size = UDim2.fromOffset(10, 10),
+        Visible = false,
+        ZIndex = 12,
+    }, plot)
+    window:_trackTheme(tooltipPointer, "SurfaceRaised", "BackgroundColor3")
+    addCorner(tooltipPointer, 2, window)
+    addStroke(tooltipPointer, window.Theme.Border, 0.35, window)
+    component._tooltipPointer = tooltipPointer
+
+    local tooltip = make("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 1),
+        BackgroundColor3 = window.Theme.SurfaceRaised,
+        BackgroundTransparency = 0.02,
+        Font = Enum.Font.GothamMedium,
+        Position = UDim2.fromOffset(0, 0),
+        Size = UDim2.fromOffset(144, 42),
+        TextColor3 = window.Theme.TextPrimary,
+        TextSize = 10,
+        TextWrapped = true,
+        Visible = false,
+        ZIndex = 13,
+    }, plot)
+    window:_trackTextColor(tooltip, window.Theme.TextPrimary)
+    component._tooltip = tooltip
+    window:_trackTheme(tooltip, "SurfaceRaised", "BackgroundColor3")
+    addCorner(tooltip, 7, window)
+    addStroke(tooltip, window.Theme.Border, 0.35, window)
+
+    local function chartValue(position)
+        local px = clamp(position.X - plot.AbsolutePosition.X, 0, plot.AbsoluteSize.X)
+        local py = clamp(position.Y - plot.AbsolutePosition.Y, 0, plot.AbsoluteSize.Y)
+        return xMin + px / math.max(1, plot.AbsoluteSize.X) * (xMax - xMin),
+            yMax - py / math.max(1, plot.AbsoluteSize.Y) * (yMax - yMin)
+    end
+    local function nearestPoint(position)
+        local bestIndex, bestDistance
+        for index, point in ipairs(component._value) do
+            local px = plot.AbsolutePosition.X
+                + (point.X - xMin) / (xMax - xMin) * plot.AbsoluteSize.X
+            local py = plot.AbsolutePosition.Y
+                + (1 - (point.Y - yMin) / (yMax - yMin)) * plot.AbsoluteSize.Y
+            local dx, dy = position.X - px, position.Y - py
+            local distance = math.sqrt(dx * dx + dy * dy)
+            if bestDistance == nil or distance < bestDistance then
+                bestIndex, bestDistance = index, distance
+            end
+        end
+        return bestIndex, bestDistance
+    end
+    local function commitPoints(points)
+        component:SetValue(points)
+        component:_changed(component._value, true)
+    end
+    local function deletePoint(index)
+        if not component.Enabled or component._locked or index <= 1 or index >= #component._value then
+            return
+        end
+        local points = copyEqualizerPoints(component._value)
+        table.remove(points, index)
+        component._selectedPoint = math.min(index, #points - 1)
+        GuiService.SelectedObject = hit
+        commitPoints(points)
+    end
+    local function deleteSelectedPoint()
+        deletePoint(component._selectedPoint)
+    end
+
+    local function toolbarButton(text, width, position, callback, label)
+        local button = window:_button(toolbar, text, callback, {
+            Background = window.Theme.ControlSurface,
+            Height = 26,
+            HoverRole = "ControlHover",
+            Radius = 5,
+            Role = "ControlSurface",
+            Size = UDim2.fromOffset(width, 26),
+            TextColor = window.Theme.TextSecondary,
+            TextSize = 10,
+            PreserveRadius = true,
+            Owner = component,
+        })
+        button.Position = position
+        button:SetAttribute("AstraLabel", label)
+        window:_connect(button.MouseEnter, function()
+            if button.Active and not button:GetAttribute("AstraChoiceSelected")
+                and not (button == component._lockButton and component._locked) then
+                button.BackgroundColor3 = window.Theme.ControlHover
+            end
+        end, component)
+        window:_connect(button.MouseLeave, function()
+            component._equalizerControlState = nil
+            component:_refreshEqualizerControls()
+        end, component)
+        return button
+    end
+    component._addButton = toolbarButton("+", 28, UDim2.fromOffset(0, 0), function()
+        if not component.Enabled or component._locked or #component._value >= 16 then
+            return
+        end
+        GuiService.SelectedObject = hit
+        local points = copyEqualizerPoints(component._value)
+        local insertIndex = clamp(component._selectedPoint, 1, #points - 1)
+        local x = (points[insertIndex].X + points[insertIndex + 1].X) / 2
+        table.insert(points, insertIndex + 1, {X = x, Y = component:Evaluate(x)})
+        component._selectedPoint = insertIndex + 1
+        commitPoints(points)
+    end, "Add point")
+    component._addButton.TextSize = 15
+    component._removeButton = toolbarButton("-", 28, UDim2.fromOffset(32, 0), deleteSelectedPoint,
+        "Delete selected point")
+    component._removeButton.TextSize = 16
+    component._lockButton = toolbarButton("Lock", 48, UDim2.fromOffset(64, 0), function()
+        if component.Enabled then
+            component._locked = not component._locked
+            component:_refreshEqualizerControls()
+        end
+    end, "Lock curve editing")
+    component._styleButtons = {}
+    local function styleToolbarButton(item)
+        local selectedStyle = item.Style
+        local button = make("TextButton", {
+            AutoButtonColor = false,
+            BackgroundColor3 = window.Theme.ControlSurface,
+            BorderSizePixel = 0,
+            Font = Enum.Font.GothamMedium,
+            Position = UDim2.new(1, item.Offset, 0, 0),
+            Selectable = true,
+            Size = UDim2.fromOffset(item.Width, 26),
+            Text = window:_resolveText(item.Text),
+            TextColor3 = window.Theme.TextSecondary,
+            TextSize = 10,
+            TextStrokeTransparency = 1,
+            ZIndex = 9,
+        }, toolbar)
+        addCorner(button, 5, window, true)
+        local stroke = addStroke(button, window.Theme.ControlBorder, 0.65, window, "ControlBorder")
+        window:_trackTheme(button, "ControlSurface", "BackgroundColor3")
+        window:_trackTheme(button, "TextSecondary", "TextColor3")
+        button:SetAttribute("AstraLabel", "Use " .. string.lower(selectedStyle) .. " graph style")
+        table.insert(window._localized, {Object = button, Value = item.Text, Property = "Text"})
+        window:_connect(button.Activated, function()
+            if component.Enabled and not component._locked then
+                component:SetStyle(selectedStyle)
+                component:_changed(component._value, true)
+            end
+        end, component)
+        window:_connect(button.MouseEnter, function()
+            if button.Active then
+                local role = component._style == selectedStyle and "AccentSecondary" or "ControlHover"
+                window:_trackTheme(button, role, "BackgroundColor3")
+            end
+        end, component)
+        window:_connect(button.MouseLeave, function()
+            component._equalizerControlState = nil
+            component:_refreshEqualizerControls()
+        end, component)
+        window:_connect(button.SelectionGained, function()
+            window:_trackTheme(stroke, "AccentSecondary", "Color")
+            stroke.Transparency = 0.15
+        end, component)
+        window:_connect(button.SelectionLost, function()
+            local selected = component._style == selectedStyle
+            window:_trackTheme(stroke, selected and "AccentSecondary" or "ControlBorder", "Color")
+            stroke.Transparency = selected and 0.15 or 0.65
+        end, component)
+        return {Button = button, Stroke = stroke}
+    end
+    local styleButtonLayout = {
+        {Style = "Linear", Text = "Line", Width = 34, Offset = -116},
+        {Style = "Smooth", Text = "Smooth", Width = 42, Offset = -78},
+        {Style = "Step", Text = "Step", Width = 32, Offset = -32},
+    }
+    for _, item in ipairs(styleButtonLayout) do
+        component._styleButtons[item.Style] = styleToolbarButton(item)
+    end
+    function component:_refreshEqualizerControls()
+        self._lockButton:SetAttribute("AstraPersistentBackgroundRole", self._locked and "Danger" or nil)
+        window:_trackTheme(self._lockButton,
+            self._locked and "Danger" or "ControlSurface", "BackgroundColor3")
+        window:_trackTheme(self._lockButton,
+            self._locked and "TextPrimary" or "TextSecondary", "TextColor3")
+        local state = table.concat({
+            tostring(self.Enabled),
+            tostring(self._locked),
+            self._style,
+            tostring(#self._value),
+            tostring(self._selectedPoint),
+        }, ":")
+        if state == self._equalizerControlState then
+            return
+        end
+        self._equalizerControlState = state
+        local enabled = self.Enabled
+        self._hit.Active = enabled and not self._locked
+        self._addButton.Active = enabled and not self._locked and #self._value < 16
+        self._addButton.TextTransparency = self._addButton.Active and 0 or 0.5
+        self._removeButton.Active = enabled and not self._locked
+            and self._selectedPoint > 1 and self._selectedPoint < #self._value
+        self._removeButton.TextTransparency = self._removeButton.Active and 0 or 0.5
+        self._lockButton.Active = enabled
+        local lockText = self._locked and "Unlock" or "Lock"
+        if self._lastLockText ~= lockText then
+            setLocalizedComponentText(self, self._lockButton, lockText)
+            self._lastLockText = lockText
+        end
+        self._lockButton.TextTransparency = enabled and 0 or 0.5
+        self._lockButton:SetAttribute("AstraLabel", self._locked and "Unlock curve editing" or "Lock curve editing")
+        window:_trackTheme(self._addButton, "ControlSurface", "BackgroundColor3")
+        window:_trackTheme(self._addButton, "TextSecondary", "TextColor3")
+        for styleName, buttonInfo in pairs(self._styleButtons) do
+            local selected = self._style == styleName
+            local button = buttonInfo.Button
+            button.Active = enabled and not self._locked
+            button.TextTransparency = button.Active and 0 or 0.5
+            window:_trackTheme(button, selected and "AccentSecondary" or "ControlSurface", "BackgroundColor3")
+            window:_trackTheme(button, selected and "AccentForeground" or "TextSecondary", "TextColor3")
+            window:_trackTheme(buttonInfo.Stroke, selected and "AccentSecondary" or "ControlBorder", "Color")
+            buttonInfo.Stroke.Transparency = selected and 0.15 or 0.65
+        end
+    end
+    component:_refreshEqualizerControls()
+
+    window:_connect(hit.MouseEnter, function()
+        component._pointerInside = true
+    end, component)
+    window:_connect(hit.MouseLeave, function()
+        component._pointerInside = false
+        component._hoveredPoint = nil
+        component:_renderEqualizer()
+    end, component)
+    window:_connect(hit.InputBegan, function(input)
+        if not component.Enabled then
+            return
+        end
+        if component._locked then
+            return
+        end
+        if input.UserInputType == Enum.UserInputType.MouseButton2 then
+            local index, distance = nearestPoint(input.Position)
+            if index and distance <= 24 then
+                deletePoint(index)
+            end
+            return
+        end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        GuiService.SelectedObject = hit
+        local index, distance = nearestPoint(input.Position)
+        local startDragging = false
+        if index and distance <= 24 then
+            component._selectedPoint = index
+            component._hoveredPoint = index
+            startDragging = true
+        end
+        component._dragging = startDragging
+        component:_renderEqualizer()
+    end, component)
+    window:_connect(UserInputService.InputChanged, function(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseMovement
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        if component._pointerInside and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local index, distance = nearestPoint(input.Position)
+            component._hoveredPoint = index and distance <= 28 and index or nil
+            component:_renderEqualizer()
+        end
+        if not component._dragging or not component.Enabled or component._locked then
+            return
+        end
+        GuiService.SelectedObject = hit
+        local points = copyEqualizerPoints(component._value)
+        local index = component._selectedPoint
+        local point = points[index]
+        local _, y = chartValue(input.Position)
+        point.Y = y
+        commitPoints(points)
+    end, component)
+    window:_connect(UserInputService.InputEnded, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            component._dragging = false
+            if not component._pointerInside then
+                component._hoveredPoint = nil
+            end
+            component:_renderEqualizer()
+        end
+    end, component)
+    window:_connect(hit.SelectionGained, function()
+        window:_trackTheme(component._plotStroke, "BorderActive", "Color")
+        component._plotStroke.Color = window.Theme.BorderActive
+    end, component)
+    window:_connect(hit.SelectionLost, function()
+        window:_trackTheme(component._plotStroke, "ControlBorder", "Color")
+        component._plotStroke.Color = window.Theme.ControlBorder
+    end, component)
+    window:_connect(UserInputService.InputBegan, function(input)
+        local focusedTextBox = UserInputService:GetFocusedTextBox()
+        local chartFocused = GuiService.SelectedObject == hit or component._pointerInside
+        if not component.Enabled or component._locked or focusedTextBox or not chartFocused then
+            return
+        end
+        local directionX, directionY
+        if input.KeyCode == Enum.KeyCode.Left or input.KeyCode == Enum.KeyCode.DPadLeft then
+            directionX = -1
+        elseif input.KeyCode == Enum.KeyCode.Right or input.KeyCode == Enum.KeyCode.DPadRight then
+            directionX = 1
+        elseif input.KeyCode == Enum.KeyCode.Down or input.KeyCode == Enum.KeyCode.DPadDown then
+            directionY = -1
+        elseif input.KeyCode == Enum.KeyCode.Up or input.KeyCode == Enum.KeyCode.DPadUp then
+            directionY = 1
+        elseif input.KeyCode == Enum.KeyCode.ButtonL1 then
+            component._selectedPoint = math.max(1, component._selectedPoint - 1)
+            component:_renderEqualizer()
+            return
+        elseif input.KeyCode == Enum.KeyCode.ButtonR1 then
+            component._selectedPoint = math.min(#component._value, component._selectedPoint + 1)
+            component:_renderEqualizer()
+            return
+        elseif input.KeyCode == Enum.KeyCode.Delete or input.KeyCode == Enum.KeyCode.Backspace then
+            deleteSelectedPoint()
+            return
+        else
+            return
+        end
+        if directionX then
+            component._selectedPoint = clamp(
+                component._selectedPoint + directionX, 1, #component._value)
+            component:_renderEqualizer()
+            return
+        end
+        local points = copyEqualizerPoints(component._value)
+        local index = component._selectedPoint
+        local point = points[index]
+        local previousY = point.Y
+        if directionY then
+            point.Y = clamp(point.Y + (yMax - yMin) * 0.01 * directionY, yMin, yMax)
+        end
+        if point.Y ~= previousY then
+            commitPoints(points)
+        end
+    end, component)
+    window:_connect(plot:GetPropertyChangedSignal("AbsoluteSize"), function()
+        component:_renderEqualizer()
+    end, component)
+    component:SetValue(defaults)
     return component
 end
 

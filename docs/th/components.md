@@ -34,6 +34,7 @@ Astra UI ใช้โครงสร้าง **window → tab → section → c
 ดูรายการฟิลด์และตัวอย่างที่ใช้งานได้ใน [ปุ่มและตัวควบคุมค่า](controls.md) ตัวควบคุมที่มีได้แก่:
 
 - `Button`, `Toggle`, `Slider`
+- `Equalizer`
 - `Dropdown`, `MultiDropdown`, `PlayerDropdown`
 - `Input`, `Keybind`, `Colorpicker`
 

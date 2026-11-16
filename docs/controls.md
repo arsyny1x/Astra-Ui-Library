@@ -67,6 +67,49 @@ Run an action; a Button has no value.
 
 The slider supports mouse, touch, and left/right keyboard or gamepad adjustments when focused.
 
+## Equalizer
+
+Edit a piecewise-linear curve by adding, moving, and removing points. It is useful for mapping one changing value to another, such as temperature to fan speed:
+
+```lua
+local fanCurve
+fanCurve = settings:Equalizer({
+    Name = "Fan speed curve",
+    XLabel = "Temperature",
+    XUnit = "°C",
+    YLabel = "Fan speed",
+    YUnit = "%",
+    XMin = 20,
+    XMax = 100,
+    YMin = 0,
+    YMax = 100,
+    Style = "Linear",
+    Default = {
+        {X = 20, Y = 20},
+        {X = 60, Y = 45},
+        {X = 100, Y = 100},
+    },
+    Callback = function(points, style)
+        print("Fan speed:", fanCurve:Evaluate(60), style)
+    end,
+})
+
+local fanSpeed = fanCurve:Evaluate(currentTemperature)
+fanCurve:SetStyle("Smooth")
+```
+
+| Field | Required | Notes |
+|---|---:|---|
+| `XMin`, `XMax` | No | Input range; defaults to `0` and `100` |
+| `YMin`, `YMax` | No | Output range; defaults to `0` and `100` |
+| `XLabel`, `YLabel` | No | Names displayed above the graph; default to `Input` and `Output` |
+| `XUnit`, `YUnit` | No | Optional units shown with values, such as `°C` and `%` |
+| `Style` | No | Initial interpolation style: `Linear`, `Smooth`, or `Step`; defaults to `Linear` |
+| `Locked` | No | Starts with editing locked; defaults to `false` |
+| `Default` | No | 2-16 ordered `{X, Y}` points; X values must span the configured bounds, then are evenly spaced automatically. Defaults to a diagonal line |
+
+Use `+` to add a point and `-` to remove the selected interior point; right-click or press Delete/Backspace to remove a point as well. X positions are always evenly spaced across the range, including after `SetValue`. Drag a point vertically to change its Y value. `Lock` prevents graph, point, and style edits until unlocked and turns red while locked. The X/Y tooltip appears only while the pointer is over a point or while dragging, with a pointer indicating the point; the readout identifies the selected axis names and units. Left/right arrows select the adjacent point, and up/down arrows adjust its Y value. Gamepad shoulder buttons also select points. Up to 16 points are allowed. The callback receives a copy of the points and the active style after user edits; `SetValue(points)` updates the curve without calling it. `GetStyle()` and `SetStyle(style)` read or change the interpolation style. `Evaluate(x)` clamps `x` to the input range and calculates `Linear`, `Smooth`, or `Step` output.
+
 ## Dropdown
 
 Select one string:

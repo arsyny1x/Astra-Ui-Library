@@ -34,6 +34,7 @@ Value controls expose `GetValue()` and `SetValue(value)`. `SetEnabled(boolean)` 
 Detailed field lists and runnable examples are in [Buttons and values](controls.md). The available controls are:
 
 - `Button`, `Toggle`, `Slider`
+- `Equalizer`
 - `Dropdown`, `MultiDropdown`, `PlayerDropdown`
 - `Input`, `Keybind`, `Colorpicker`
 

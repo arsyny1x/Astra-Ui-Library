@@ -54,6 +54,17 @@ local THAI_TEXT = {
     ["Toggle state can be saved and restored."] = "สามารถบันทึกและเรียกคืนสถานะสวิตช์ได้",
     ["Refresh interval"] = "ช่วงเวลารีเฟรช",
     ["Adjust the sample interval used by this demo."] = "ปรับช่วงเวลาเก็บข้อมูลของเดโมนี้",
+    ["Fan speed curve"] = "กราฟความเร็วพัดลม",
+    ["Use + to add points, then drag them. Lock prevents accidental edits."] = "กด + เพื่อเพิ่มจุด แล้วลากเพื่อปรับ ล็อกเพื่อป้องกันการแก้ไขโดยไม่ตั้งใจ",
+    ["Temperature"] = "อุณหภูมิ",
+    ["Fan speed"] = "ความเร็วพัดลม",
+    ["Simulated fan temperature"] = "อุณหภูมิพัดลมจำลอง",
+    ["Add point"] = "เพิ่มจุด",
+    ["Lock"] = "ล็อก",
+    ["Unlock"] = "ปลดล็อก",
+    ["Line"] = "เส้นตรง",
+    ["Smooth"] = "โค้งเรียบ",
+    ["Step"] = "ขั้นบันได",
     ["Display density"] = "ความหนาแน่นการแสดงผล",
     ["Appearance and actions"] = "รูปลักษณ์และการทำงาน",
     ["Dashboard label"] = "ชื่อแดชบอร์ด",
@@ -429,6 +440,42 @@ local refreshIntervalControl = settings:Slider({
     Callback = function(value)
         sampleInterval = value
         print("Refresh interval:", value)
+    end,
+})
+
+local fanSpeedCurve
+fanSpeedCurve = settings:Equalizer({
+    Id = "fan-speed-curve",
+    Name = "Fan speed curve",
+    Description = "Use + to add points. Left/right selects points; up/down adjusts fan speed.",
+    XMin = 20,
+    XMax = 100,
+    YMin = 0,
+    YMax = 100,
+    XLabel = "Temperature",
+    XUnit = "°C",
+    YLabel = "Fan speed",
+    YUnit = "%",
+    Style = "Linear",
+    Default = {
+        {X = 20, Y = 20},
+        {X = 60, Y = 45},
+        {X = 100, Y = 100},
+    },
+    Callback = function(points)
+        print("Fan speed at 60 C:", math.floor(fanSpeedCurve:Evaluate(60)))
+    end,
+})
+
+settings:Slider({
+    Id = "fan-temperature",
+    Name = "Simulated fan temperature",
+    Min = 20,
+    Max = 100,
+    Step = 1,
+    Default = 60,
+    Callback = function(temperature)
+        print("Fan speed:", math.floor(fanSpeedCurve:Evaluate(temperature)) .. "%")
     end,
 })
 
